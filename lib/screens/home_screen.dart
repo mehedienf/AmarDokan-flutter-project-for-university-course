@@ -30,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_titles[_currentIndex])),
+      appBar: AppBar(title: Text(_titles[_currentIndex], style: TextStyle(fontSize: 22)), centerTitle: true),
       body: _pages[_currentIndex],
       // bottomNavigationBar: MyBottomNavBar(currentIndex: _currentIndex, onTap: (i) => setState(() => _currentIndex = i),),
       bottomNavigationBar: BottomNavigationBar(
