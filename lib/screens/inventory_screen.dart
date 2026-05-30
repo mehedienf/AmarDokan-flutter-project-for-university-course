@@ -164,17 +164,10 @@ class InventoryScreen extends StatelessWidget {
       mainAxisAlignment: .center,
       children: [
         ElevatedButton(
-          // onPressed: () {
-          //   Provider.of<ProductProvider>(
-          //     context,
-          //     listen: false,
-          //   ).addProduct(Product(name: 'Pen', price: 5, quantity: 10));
-          // },
           onPressed: () {
             _showAddProductDialog(context);
           },
-
-          child: Text('Add New Item'),
+          child: Text('Add Product'),
         ),
         SizedBox(height: 2),
         Expanded(

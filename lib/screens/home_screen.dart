@@ -1,4 +1,11 @@
+import 'package:amar_dokan/widgets/bottom_navbar.dart';
 import 'package:flutter/material.dart';
+
+import 'package:amar_dokan/models/page_model.dart';
+
+import 'package:provider/provider.dart';
+import 'package:amar_dokan/providers/navigation_provider.dart';
+
 import 'package:amar_dokan/screens/dashboard_screen.dart';
 import 'package:amar_dokan/screens/inventory_screen.dart';
 import 'package:amar_dokan/screens/report_screen.dart';
@@ -11,48 +18,45 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
-
-  final List<Widget> _pages = [
-    DashboardScreen(),
-    InventoryScreen(),
-    SalesScreen(),
-    ReportScreen(),
-  ];
-
-  final List<String> _titles = [
-    'Dashboard',
-    'Inventory',
-    'Sales',
-    'Report',
+  final List<Pages> _pages = [
+    Pages('Dashboard', DashboardScreen()),
+    Pages('Inventory', InventoryScreen()),
+    Pages('Sales', SalesScreen()),
+    Pages('Report', ReportScreen()),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final navigationProvider = context.watch<NavigationProvider>();
+
     return Scaffold(
-      appBar: AppBar(title: Text(_titles[_currentIndex], style: TextStyle(fontSize: 22)), centerTitle: true),
-      body: _pages[_currentIndex],
-      // bottomNavigationBar: MyBottomNavBar(currentIndex: _currentIndex, onTap: (i) => setState(() => _currentIndex = i),),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        currentIndex: _currentIndex, // Set the current index
-        onTap: (index) {
-          setState(() => _currentIndex = index);
-        }, // Update the current index on tap
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory),
-            label: 'Inventory',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.sell), label: 'Sales'),
-          BottomNavigationBarItem(icon: Icon(Icons.report), label: 'Report'),
-        ],
+      appBar: AppBar(
+        title: Text(_pages[navigationProvider.currentIndex].title, style: TextStyle(fontSize: 22)),
+        centerTitle: true,
       ),
+      body: IndexedStack(
+        // IndexedStack use korchi jate page switch korar somoy state maintain thake, jodi amra direct page.page use kortam tahole page switch korar somoy state loss hoye jeto
+        index: navigationProvider.currentIndex,
+        children: _pages.map((page) => page.page).toList(),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(child: Text('InvoSys')),
+            ListTile(
+              leading: Icon(Icons.star, color: Colors.amber),
+              title: Text('Home'),
+              subtitle: Text('Dashboard Screen'),
+              trailing: Icon(Icons.chevron_right),
+              selectedTileColor: Colors.grey.shade200,
+              onTap: () {},
+              selected: true,
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: BottomNavbar(),
     );
   }
 }
