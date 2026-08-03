@@ -6,6 +6,7 @@ import 'package:amar_dokan/core/providers/navigation_provider.dart';
 
 import 'package:amar_dokan/features/customers/presentation/screens/customers_screen.dart';
 import 'package:amar_dokan/features/suppliers/presentation/screens/suppliers_screen.dart';
+import 'package:amar_dokan/features/purchase/presentation/screens/purchase_screen.dart';
 
 /// App Drawer - Side Menu
 /// এখান থেকে Drawer based features (Purchase, Accounting, ইত্যাদি) access করা যায়
@@ -109,7 +110,12 @@ class AppDrawer extends StatelessWidget {
             title: const Text('Purchase'),
             onTap: () {
               Navigator.pop(context);
-              _showComingSoon(context, 'Purchase');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PurchaseScreen(),
+                ),
+              );
             },
           ),
 
