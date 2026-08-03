@@ -7,6 +7,7 @@ import 'package:amar_dokan/core/providers/navigation_provider.dart';
 import 'package:amar_dokan/features/customers/presentation/screens/customers_screen.dart';
 import 'package:amar_dokan/features/suppliers/presentation/screens/suppliers_screen.dart';
 import 'package:amar_dokan/features/purchase/presentation/screens/purchase_screen.dart';
+import 'package:amar_dokan/features/accounting/presentation/screens/accounting_screen.dart';
 
 /// App Drawer - Side Menu
 /// এখান থেকে Drawer based features (Purchase, Accounting, ইত্যাদি) access করা যায়
@@ -21,9 +22,7 @@ class AppDrawer extends StatelessWidget {
         children: [
           // Drawer Header - App এর branding দেখায়
           DrawerHeader(
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-            ),
+            decoration: const BoxDecoration(color: AppColors.primary),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
@@ -54,10 +53,7 @@ class AppDrawer extends StatelessWidget {
                 ),
                 const Text(
                   'Inventory & Sales Manager',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),
@@ -112,9 +108,7 @@ class AppDrawer extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const PurchaseScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const PurchaseScreen()),
               );
             },
           ),
@@ -125,7 +119,10 @@ class AppDrawer extends StatelessWidget {
             title: const Text('Accounting'),
             onTap: () {
               Navigator.pop(context);
-              _showComingSoon(context, 'Accounting');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AccountingScreen()),
+              );
             },
           ),
 
@@ -137,9 +134,7 @@ class AppDrawer extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const SuppliersScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const SuppliersScreen()),
               );
             },
           ),
@@ -152,9 +147,7 @@ class AppDrawer extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const CustomersScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const CustomersScreen()),
               );
             },
           ),
