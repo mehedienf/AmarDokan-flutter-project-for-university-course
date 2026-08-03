@@ -6,6 +6,7 @@ import 'package:amar_dokan/firebase_options.dart';
 
 import 'package:amar_dokan/providers/product_provider.dart';
 import 'package:amar_dokan/core/providers/navigation_provider.dart';
+import 'package:amar_dokan/core/theme/app_theme.dart';
 import 'package:amar_dokan/app/app.dart';
 
 void main() async {
@@ -36,7 +37,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Amar Dokan',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
       home: const MainApp(),
     );
   }
