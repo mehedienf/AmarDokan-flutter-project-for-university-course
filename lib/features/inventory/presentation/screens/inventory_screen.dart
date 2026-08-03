@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:amar_dokan/features/inventory/data/models/product_model.dart';
-import 'package:amar_dokan/features/inventory/data/models/product_category.dart';
 import 'package:amar_dokan/features/inventory/providers/inventory_provider.dart';
+import 'package:amar_dokan/features/inventory/presentation/widgets/product_form.dart';
+import 'package:amar_dokan/features/inventory/presentation/screens/product_details_screen.dart';
 import 'package:amar_dokan/core/constants/app_colors.dart';
 
 /// Inventory Screen - Products list with Firestore backend
@@ -79,151 +80,39 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   // Add Product Dialog
-  Future<void> _showAddProductDialog(BuildContext context) async {
-    final nameController = TextEditingController();
-    final skuController = TextEditingController();
-    final purchasePriceController = TextEditingController();
-    final sellingPriceController = TextEditingController();
-    final quantityController = TextEditingController();
-    ProductCategory selectedCategory = ProductCategory.other;
-
+  Future<void> _showAddProductForm(BuildContext context) async {
     await showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Add Product'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Product Name',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: skuController,
-                  decoration: const InputDecoration(
-                    labelText: 'SKU (Code)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<ProductCategory>(
-                  initialValue: selectedCategory,
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: ProductCategory.values.map((category) {
-                    return DropdownMenuItem(
-                      value: category,
-                      child: Text(category.displayName),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => selectedCategory = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: purchasePriceController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Purchase Price',
-                    prefixText: '৳ ',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: sellingPriceController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Selling Price',
-                    prefixText: '৳ ',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: quantityController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Quantity',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                final sku = skuController.text.trim();
-                final purchasePrice =
-                    double.tryParse(purchasePriceController.text.trim());
-                final sellingPrice =
-                    double.tryParse(sellingPriceController.text.trim());
-                final quantity =
-                    int.tryParse(quantityController.text.trim());
-
-                if (name.isEmpty ||
-                    sku.isEmpty ||
-                    purchasePrice == null ||
-                    sellingPrice == null ||
-                    quantity == null) {
-                  if (context.mounted) {
-                    _showSnackBar(
-                      context,
-                      'Please fill all fields correctly',
-                      AppColors.error,
-                    );
-                  }
-                  return;
-                }
-
-                final product = ProductModel(
-                  id: '', // Firestore auto-generate করবে
-                  name: name,
-                  sku: sku,
-                  category: selectedCategory,
-                  purchasePrice: purchasePrice,
-                  sellingPrice: sellingPrice,
-                  stock: quantity,
-                  lowStockThreshold: 5,
-                  createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
-                );
-
-                final success =
-                    await context.read<InventoryProvider>().addProduct(product);
-
-                if (context.mounted) {
-                  Navigator.of(ctx).pop();
-                  _showSnackBar(
-                    context,
-                    success
-                        ? 'Product added successfully!'
-                        : 'Failed to add product',
-                    success ? AppColors.success : AppColors.error,
-                  );
-                }
-              },
-              child: const Text('Add'),
-            ),
-          ],
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
+        child: ProductForm(
+          onCancel: () => Navigator.of(ctx).pop(),
+          onSubmit: (product) async {
+            final success =
+                await context.read<InventoryProvider>().addProduct(product);
+            if (ctx.mounted) {
+              Navigator.of(ctx).pop();
+              if (context.mounted) {
+                _showSnackBar(
+                  context,
+                  success ? 'Product added!' : 'Failed to add',
+                  success ? AppColors.success : AppColors.error,
+                );
+              }
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _navigateToDetails(BuildContext context, ProductModel product) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProductDetailsScreen(product: product),
       ),
     );
   }
@@ -309,6 +198,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 4),
                 child: ListTile(
+                  onTap: () => _navigateToDetails(context, product),
                   leading: CircleAvatar(
                     backgroundColor: product.isLowStock
                         ? AppColors.warning
@@ -335,7 +225,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddProductDialog(context),
+        onPressed: () => _showAddProductForm(context),
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add, color: Colors.white),
       ),
