@@ -223,11 +223,33 @@ class AppDrawer extends StatelessWidget {
             ),
             onTap: () async {
               final navigator = Navigator.of(context);
-              navigator.pop();
+              final rootNavigator =
+                  Navigator.of(context, rootNavigator: true);
+              final auth = context.read<AuthProvider>();
+              final messenger = ScaffoldMessenger.maybeOf(context);
+              navigator.pop(); // close drawer
+              if (!context.mounted) return;
               final shouldSignOut = await _confirmSignOut(context);
               if (!shouldSignOut) return;
-              if (!context.mounted) return;
-              await context.read<AuthProvider>().signOut();
+
+              final ok = await auth.signOut();
+
+              // Flush any pushed screens (Purchase/Accounting/Suppliers/
+              // Customers) back to the first route so the AuthGate rebuild
+              // is actually visible. Without this, stacked routes linger
+              // over the LoginScreen and back navigation lands on a stale
+              // authenticated screen.
+              if (rootNavigator.canPop()) {
+                rootNavigator.popUntil((route) => route.isFirst);
+              }
+
+              if (!ok && messenger != null) {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Sign out failed. Please try again.'),
+                  ),
+                );
+              }
             },
           ),
         ],

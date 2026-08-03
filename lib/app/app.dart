@@ -17,12 +17,34 @@ import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
 import 'package:amar_dokan/features/auth/presentation/screens/login_screen.dart';
 
 /// Top-level gate that picks Splash / Login / MainApp based on auth state.
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _wasAuthenticated = false;
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+
+    // Detect transition from authenticated -> signed out so we can flush
+    // any pushed routes (Purchase/Accounting/Suppliers/Customers) that
+    // were stacked on top of MainApp. Without this, back navigation can
+    // reveal screens that still expect an authenticated user.
+    final isAuthed = auth.isAuthenticated;
+    if (_wasAuthenticated && !isAuthed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final rootNav = Navigator.of(context, rootNavigator: true);
+        if (rootNav.canPop()) {
+          rootNav.popUntil((route) => route.isFirst);
+        }
+      });
+    }
+    _wasAuthenticated = isAuthed;
 
     if (!auth.isInitialized) {
       return const _SplashScreen();

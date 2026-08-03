@@ -106,14 +106,17 @@ class AuthService {
   // ============================================
 
   Future<void> signOut() async {
-    // Disconnect Google account locally so next sign-in re-prompts.
+    // Best-effort cleanup for Google — wrapped in timeouts so a stalled
+    // network call can never block logout. Order matters: disconnect
+    // locally, then sign out, then drop the Firebase session last so
+    // the auth state change is the final signal.
     try {
-      await _googleSignIn.disconnect();
+      await _googleSignIn.disconnect().timeout(const Duration(seconds: 2));
     } catch (_) {
       // ignore — may not have been signed in via Google
     }
     try {
-      await _googleSignIn.signOut();
+      await _googleSignIn.signOut().timeout(const Duration(seconds: 2));
     } catch (_) {
       // ignore — best-effort cleanup
     }

@@ -13,6 +13,7 @@ import 'package:amar_dokan/features/accounting/providers/transaction_provider.da
 import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
 import 'package:amar_dokan/core/providers/navigation_provider.dart';
 import 'package:amar_dokan/core/theme/app_theme.dart';
+import 'package:amar_dokan/features/report/providers/report_provider.dart';
 import 'package:amar_dokan/app/app.dart';
 
 void main() async {
@@ -32,6 +33,9 @@ void main() async {
         ChangeNotifierProvider(create: (_) => SaleProvider()),
         ChangeNotifierProvider(create: (_) => PurchaseProvider()),
         ChangeNotifierProvider(create: (_) => TransactionProvider()),
+        // ReportProvider reads from Sale/Purchase/Transaction/Inventory above
+        // when recompute() is called, so it must come after them.
+        ChangeNotifierProvider(create: (_) => ReportProvider()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
       ],
       child: MyApp(),

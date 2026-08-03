@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// Cloud Firestore Security Rules for Amar Dokan
+//
+// Data shape:
+//   users/{uid}                      -> user profile
+//   users/{uid}/products/{productId}     inventory
+//   users/{uid}/customers/{customerId}
+//   users/{uid}/suppliers/{supplierId}
+//   users/{uid}/sales/{saleId}
+//   users/{uid}/purchases/{purchaseId}
+//   users/{uid}/transactions/{transactionId}    (accounting)
+//
+// Rule strategy:
+//   - Anyone signed-in may create their own profile doc on first login.
+//   - Users may ONLY read/write documents under their own uid subtree.
+//   - Every other read/write is denied.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // User profile: owner can read/write; a signed-in user can
+    // create their own profile (idempotent — extra creates overwrite).
+    match /users/{userId} {
+      allow read, update, delete: if isOwner(userId);
+      allow create: if isOwner(userId);
+
+      // Every sub-collection (products, customers, suppliers,
+      // sales, purchases, transactions) is owned by the parent uid.
+      match /{anyCollection}/{anyDoc} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Default deny for anything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

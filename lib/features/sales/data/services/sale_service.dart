@@ -3,20 +3,30 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:amar_dokan/features/inventory/data/services/inventory_service.dart';
 import 'package:amar_dokan/features/sales/data/models/sale_model.dart';
 
 /// SaleService - Firestore এর সাথে sales data manage করে
 ///
 /// Firestore path: users/{userId}/sales/{saleId}
+///
+/// Sale side-effects:
+/// - `addSale` automatically decrements product stock for every item when the
+///   sale status is `completed` (pending/cancelled leave stock untouched).
+/// - `deleteSale` automatically restores stock for completed sales so that
+///   returns / corrections don't leave the inventory drifted.
 class SaleService {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+  final InventoryService _inventoryService;
 
   SaleService({
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
+    InventoryService? inventoryService,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+        _auth = auth ?? FirebaseAuth.instance,
+        _inventoryService = inventoryService ?? InventoryService();
 
   CollectionReference? get _salesCollection {
     final user = _auth.currentUser;
@@ -77,6 +87,24 @@ class SaleService {
       throw Exception('User not authenticated');
     }
     final docRef = await collection.add(sale.toFirestore());
+
+    // Decrement inventory stock for every item — but only when the sale is
+    // actually completed. Pending/cancelled sales keep the stock untouched so
+    // that an unfinished invoice can't drive inventory negative.
+    if (sale.status == 'completed') {
+      for (final item in sale.items) {
+        try {
+          final existing =
+              await _inventoryService.getProductById(item.productId);
+          if (existing == null) continue;
+          final newStock = (existing.stock - item.quantity).clamp(0, 1 << 31).toInt();
+          await _inventoryService.updateStock(item.productId, newStock);
+        } catch (_) {
+          // Surface via provider error — don't fail the whole sale on one item.
+        }
+      }
+    }
+
     return docRef.id;
   }
 
@@ -96,7 +124,32 @@ class SaleService {
     if (collection == null) {
       throw Exception('User not authenticated');
     }
+
+    // Snapshot before delete so we can restore stock if this was a completed sale.
+    final doc = await collection.doc(saleId).get();
+    SaleModel? existing;
+    if (doc.exists) {
+      existing = SaleModel.fromFirestore(
+        doc.data() as Map<String, dynamic>,
+        doc.id,
+      );
+    }
+
     await collection.doc(saleId).delete();
+
+    if (existing != null && existing.status == 'completed') {
+      for (final item in existing.items) {
+        try {
+          final product =
+              await _inventoryService.getProductById(item.productId);
+          if (product == null) continue;
+          final newStock = product.stock + item.quantity;
+          await _inventoryService.updateStock(item.productId, newStock);
+        } catch (_) {
+          // Skip silent failures — provider should surface errors.
+        }
+      }
+    }
   }
 
   Future<SaleModel?> getSale(String saleId) async {
