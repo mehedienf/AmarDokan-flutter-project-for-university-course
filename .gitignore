@@ -43,3 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Editor / AI assistant local cache
+.puku/
+*.db-wal
+*.db-shm
+
+# Environment / secrets (prevent future leaks)
+.env
+.env.*
+**/api_keys.txt
+**/secrets.json
+google-services.json
+**/GoogleService-Info.plist
