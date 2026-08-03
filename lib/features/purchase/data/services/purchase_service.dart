@@ -100,19 +100,26 @@ class PurchaseService {
     // Stock-in + price refresh for every item.
     for (final item in purchase.items) {
       try {
-        final existing = await _inventoryService.getProductById(item.productId);
-        if (existing == null) continue;
-        final newStock = existing.stock + item.quantity;
-        // Use updateStock for the atomic stock change, then patch purchasePrice.
-        await _inventoryService.updateStock(item.productId, newStock);
-        await _inventoryService.updateProduct(
-          existing.copyWith(
-            purchasePrice: item.unitPrice,
-            sellingPrice: item.unitSellingPrice > 0
-                ? item.unitSellingPrice
-                : existing.sellingPrice,
-          ),
-        );
+        final productRef = _inventoryService.productRef(item.productId);
+        if (productRef == null) continue;
+
+        await _firestore.runTransaction((txn) async {
+          final snapshot = await txn.get(productRef);
+          if (!snapshot.exists) return;
+
+          final data = snapshot.data() as Map<String, dynamic>;
+          final newSellingPrice = item.unitSellingPrice > 0
+              ? item.unitSellingPrice
+              : (data['sellingPrice'] ?? 0).toDouble();
+
+          txn.update(productRef, {
+            // Server-side increment is atomic across concurrent purchases.
+            'stock': FieldValue.increment(item.quantity),
+            'purchasePrice': item.unitPrice,
+            'sellingPrice': newSellingPrice,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        });
       } catch (_) {
         // Continue processing other items; surface via provider error.
       }

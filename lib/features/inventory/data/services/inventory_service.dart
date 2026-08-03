@@ -34,6 +34,19 @@ class InventoryService {
       .doc(_userId)
       .collection('products');
 
+  /// Public accessor for a single product document reference.
+  /// Used by sibling services (e.g. `PurchaseService`) that need to run
+  /// their own transactions against the same document.
+  DocumentReference? productRef(String productId) {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('products')
+        .doc(productId);
+  }
+
   // ============================================
   // CREATE - নতুন product add করা
   // ============================================
@@ -148,16 +161,23 @@ class InventoryService {
   // ============================================
 
   /// Existing product এর data update করে
+  ///
+  /// Only the user-editable fields are patched — `stock` is intentionally
+  /// excluded so callers (e.g. `PurchaseService.addPurchase`) can adjust it
+  /// with `updateStock()` without this write clobbering the change.
   Future<void> updateProduct(ProductModel product) async {
     try {
-      // updatedAt automatically নতুন time set করি
-      final updatedProduct = product.copyWith(
-        updatedAt: DateTime.now(),
-      );
-
-      await _productsRef
-          .doc(product.id)
-          .update(updatedProduct.toFirestore());
+      await _productsRef.doc(product.id).update({
+        'name': product.name,
+        'sku': product.sku,
+        'category': product.category.name,
+        'purchasePrice': product.purchasePrice,
+        'sellingPrice': product.sellingPrice,
+        'lowStockThreshold': product.lowStockThreshold,
+        'description': product.description,
+        'imageUrl': product.imageUrl,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
     } on FirebaseException catch (e) {
       throw Exception('Failed to update product: ${e.message}');
     } catch (e) {

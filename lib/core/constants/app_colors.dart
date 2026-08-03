@@ -24,7 +24,7 @@ class AppColors {
   // Neutral Colors (Background ও text এর জন্য)
   static const Color background = Color(0xFFF5F5F5); // হালকা ধূসর background
   static const Color surface = Color(0xFFFFFFFF); // Card এর background
-  static const Color textPrimary = Color(0xFF212121); // প্রধান text
+  static const Color textPrimary = Color.fromARGB(255, 201, 196, 196); // প্রধান text
   static const Color textSecondary = Color(0xFF757575); // গৌণ text
   static const Color divider = Color(0xFFE0E0E0); // Divider line
 
