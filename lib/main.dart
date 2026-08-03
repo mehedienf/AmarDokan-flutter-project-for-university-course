@@ -5,6 +5,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:amar_dokan/firebase_options.dart';
 
 import 'package:amar_dokan/features/inventory/providers/inventory_provider.dart';
+import 'package:amar_dokan/features/customers/providers/customer_provider.dart';
+import 'package:amar_dokan/features/suppliers/providers/supplier_provider.dart';
 import 'package:amar_dokan/core/providers/navigation_provider.dart';
 import 'package:amar_dokan/core/theme/app_theme.dart';
 import 'package:amar_dokan/app/app.dart';
@@ -22,6 +24,8 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
+        ChangeNotifierProvider(create: (_) => CustomerProvider()),
+        ChangeNotifierProvider(create: (_) => SupplierProvider()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
       ],
       child: MyApp(),
