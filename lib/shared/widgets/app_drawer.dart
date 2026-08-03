@@ -8,6 +8,29 @@ import 'package:amar_dokan/features/customers/presentation/screens/customers_scr
 import 'package:amar_dokan/features/suppliers/presentation/screens/suppliers_screen.dart';
 import 'package:amar_dokan/features/purchase/presentation/screens/purchase_screen.dart';
 import 'package:amar_dokan/features/accounting/presentation/screens/accounting_screen.dart';
+import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
+
+/// Helper used by Sign Out tile to confirm before logging out.
+Future<bool> _confirmSignOut(BuildContext context) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Sign out'),
+      content: const Text('Are you sure you want to sign out?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('Sign out', style: TextStyle(color: Colors.red)),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
+}
 
 /// App Drawer - Side Menu
 /// এখান থেকে Drawer based features (Purchase, Accounting, ইত্যাদি) access করা যায়
@@ -182,6 +205,29 @@ class AppDrawer extends StatelessWidget {
             onTap: () {
               Navigator.pop(context);
               _showComingSoon(context, 'About');
+            },
+          ),
+
+          // Divider
+          const Divider(),
+
+          // Sign out
+          ListTile(
+            leading: const Icon(Icons.logout, color: AppColors.error),
+            title: const Text(
+              'Sign Out',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            onTap: () async {
+              final navigator = Navigator.of(context);
+              navigator.pop();
+              final shouldSignOut = await _confirmSignOut(context);
+              if (!shouldSignOut) return;
+              if (!context.mounted) return;
+              await context.read<AuthProvider>().signOut();
             },
           ),
         ],

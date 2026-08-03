@@ -520,7 +520,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Widget _categoryDropdown(List<TransactionCategory> categories) {
     return DropdownButtonFormField<TransactionCategory>(
-      value: _category,
+      initialValue: _category,
       decoration: const InputDecoration(
         border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),

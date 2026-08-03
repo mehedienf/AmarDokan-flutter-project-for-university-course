@@ -10,6 +10,7 @@ import 'package:amar_dokan/features/suppliers/providers/supplier_provider.dart';
 import 'package:amar_dokan/features/sales/providers/sale_provider.dart';
 import 'package:amar_dokan/features/purchase/providers/purchase_provider.dart';
 import 'package:amar_dokan/features/accounting/providers/transaction_provider.dart';
+import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
 import 'package:amar_dokan/core/providers/navigation_provider.dart';
 import 'package:amar_dokan/core/theme/app_theme.dart';
 import 'package:amar_dokan/app/app.dart';
@@ -24,6 +25,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()..initialize()),
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => CustomerProvider()),
         ChangeNotifierProvider(create: (_) => SupplierProvider()),
@@ -48,7 +50,7 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      home: const MainApp(),
+      home: const AuthGate(),
     );
   }
 }
