@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:amar_dokan/models/product_model.dart';
+import 'package:amar_dokan/features/inventory/data/models/product_model.dart';
 import 'package:amar_dokan/providers/product_provider.dart';
 import 'package:provider/provider.dart';
 

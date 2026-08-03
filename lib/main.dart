@@ -1,40 +1,43 @@
 import 'package:flutter/material.dart';
-
 import 'package:provider/provider.dart';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:amar_dokan/firebase_options.dart';
+
 import 'package:amar_dokan/providers/product_provider.dart';
-import 'package:amar_dokan/providers/navigation_provider.dart';
+import 'package:amar_dokan/core/providers/navigation_provider.dart';
+import 'package:amar_dokan/app/app.dart';
 
-import 'screens/home_screen.dart';
+void main() async {
+  // Flutter এ async কাজ করার আগে WidgetsFlutterBinding ensure করতে হয়
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() {
-  runApp(MultiProvider(
-    providers: [
-      ChangeNotifierProvider(create: (_) => ProductProvider()),
-      ChangeNotifierProvider(create: (_) => NavigationProvider()),
-    ],
-    child: const MainApp(title: 'AmarDokan'),
-  ));
+  // Firebase initialize করা হচ্ছে
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ProductProvider()),
+        ChangeNotifierProvider(create: (_) => NavigationProvider()),
+      ],
+      child: MyApp(),
+    ),
+  );
 }
 
-class MainApp extends StatelessWidget {
-  final String title;
-  const MainApp({super.key, required this.title});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          primary: const Color.fromARGB(255, 88, 66, 229),
-          secondary: Colors.blueAccent,
-        ),
-        // bottomAppBarColor: Colors.white,
-      ),
-      themeMode: ThemeMode.light,
-      title: 'AmarDokan',
-      home: HomeScreen(),
       debugShowCheckedModeBanner: false,
+      title: 'Amar Dokan',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const MainApp(),
     );
   }
 }

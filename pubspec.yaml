@@ -1,5 +1,5 @@
 name: amar_dokan
-description: "A new Flutter project."
+description: "Amar Dokan - Inventory & Sales Management App"
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -9,7 +9,25 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # State Management
   provider: ^6.1.5
+
+  # Firebase Core
+  firebase_core: ^3.12.1
+  firebase_auth: ^5.5.1
+  cloud_firestore: ^5.6.5
+  firebase_storage: ^12.4.4
+
+  # Google Sign In
+  google_sign_in: ^6.3.0
+
+  # Utilities
+  intl: ^0.19.0
+  uuid: ^4.5.1
+
+  # Icons (optional, for additional icons)
+  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:

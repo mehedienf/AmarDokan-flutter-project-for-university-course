@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "732150307261",
+    "project_id": "amar-dokan-flutter-app",
+    "storage_bucket": "amar-dokan-flutter-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:732150307261:android:fde216060f15afc1f15ad4",
+        "android_client_info": {
+          "package_name": "com.example.amar_dokan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDW4h3SQ-rARwoedkHMTz0mApd16n1CXus"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
