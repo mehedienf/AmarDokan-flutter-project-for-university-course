@@ -11,7 +11,7 @@ import 'package:amar_dokan/shared/widgets/app_drawer.dart';
 import 'package:amar_dokan/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:amar_dokan/features/inventory/presentation/screens/inventory_screen.dart';
 import 'package:amar_dokan/features/report/presentation/screens/report_screen.dart';
-import 'package:amar_dokan/features/sale/presentation/screens/sale_screen.dart';
+import 'package:amar_dokan/features/sales/presentation/screens/sales_screen.dart';
 
 class MainApp extends StatefulWidget {
   const MainApp({super.key});
@@ -24,7 +24,7 @@ class _MyAppState extends State<MainApp> {
   final List<Pages> _pages = [
     Pages('Dashboard', DashboardScreen()),
     Pages('Inventory', InventoryScreen()),
-    Pages('Sales', SaleScreen()),
+    Pages('Sales', SalesScreen()),
     Pages('Report', ReportScreen()),
   ];
 

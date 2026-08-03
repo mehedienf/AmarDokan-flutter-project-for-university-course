@@ -63,7 +63,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '732150307261',
     projectId: 'amar-dokan-flutter-app',
     storageBucket: 'amar-dokan-flutter-app.firebasestorage.app',
-    iosBundleId: 'com.example.invosisFlutter',
+    iosBundleId: 'com.example.amar_dokan',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -72,7 +72,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '732150307261',
     projectId: 'amar-dokan-flutter-app',
     storageBucket: 'amar-dokan-flutter-app.firebasestorage.app',
-    iosBundleId: 'com.example.invosisFlutter',
+    iosBundleId: 'com.example.amar_dokan',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

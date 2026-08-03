@@ -56,3 +56,5 @@ app.*.map.json
 **/secrets.json
 google-services.json
 **/GoogleService-Info.plist
+release.keystore
+key.properties

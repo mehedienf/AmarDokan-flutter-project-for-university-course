@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'package:amar_dokan/core/constants/app_colors.dart';
+import 'package:amar_dokan/core/providers/navigation_provider.dart';
+
+import 'package:amar_dokan/features/customers/presentation/screens/customers_screen.dart';
+import 'package:amar_dokan/features/suppliers/presentation/screens/suppliers_screen.dart';
 
 /// App Drawer - Side Menu
 /// এখান থেকে Drawer based features (Purchase, Accounting, ইত্যাদি) access করা যায়
@@ -73,10 +79,14 @@ class AppDrawer extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.dashboard_outlined),
             title: const Text('Dashboard'),
-            selected: true,
-            onTap: () {
-              Navigator.pop(context); // Drawer close
-            },
+            onTap: () => _navigateTo(context, 0),
+          ),
+
+          // Sales
+          ListTile(
+            leading: const Icon(Icons.point_of_sale_outlined),
+            title: const Text('Sales'),
+            onTap: () => _navigateTo(context, 2),
           ),
 
           // Divider
@@ -119,7 +129,12 @@ class AppDrawer extends StatelessWidget {
             title: const Text('Suppliers'),
             onTap: () {
               Navigator.pop(context);
-              _showComingSoon(context, 'Suppliers');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SuppliersScreen(),
+                ),
+              );
             },
           ),
 
@@ -129,7 +144,12 @@ class AppDrawer extends StatelessWidget {
             title: const Text('Customers'),
             onTap: () {
               Navigator.pop(context);
-              _showComingSoon(context, 'Customers');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CustomersScreen(),
+                ),
+              );
             },
           ),
 
@@ -168,6 +188,12 @@ class AppDrawer extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // Navigate to a bottom-nav page (closes drawer first)
+  void _navigateTo(BuildContext context, int index) {
+    Navigator.pop(context);
+    context.read<NavigationProvider>().setCurrentIndex(index);
   }
 
   // এই feature গুলো এখনো বানানো হয়নি, তাই message দেখাচ্ছি
