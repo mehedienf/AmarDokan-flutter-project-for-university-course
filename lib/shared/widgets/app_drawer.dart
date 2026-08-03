@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:amar_dokan/core/constants/app_colors.dart';
 
+/// App Drawer - Side Menu
+/// এখান থেকে Drawer based features (Purchase, Accounting, ইত্যাদি) access করা যায়
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
 
@@ -9,17 +12,171 @@ class AppDrawer extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          const DrawerHeader(child: Text('InvoSys')),
+          // Drawer Header - App এর branding দেখায়
+          DrawerHeader(
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // App Icon
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: const Icon(
+                    Icons.store,
+                    size: 36,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // App Name
+                const Text(
+                  'Amar Dokan',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Text(
+                  'Inventory & Sales Manager',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Main Menu Section
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'MAIN',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+
+          // Dashboard
           ListTile(
-            leading: Icon(Icons.star, color: Colors.amber),
-            title: Text('Home'),
-            subtitle: Text('Dashboard Screen'),
-            trailing: Icon(Icons.chevron_right),
-            selectedTileColor: Colors.grey.shade200,
-            onTap: () {},
+            leading: const Icon(Icons.dashboard_outlined),
+            title: const Text('Dashboard'),
             selected: true,
+            onTap: () {
+              Navigator.pop(context); // Drawer close
+            },
+          ),
+
+          // Divider
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Text(
+              'MANAGEMENT',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+
+          // Purchase
+          ListTile(
+            leading: const Icon(Icons.shopping_cart_outlined),
+            title: const Text('Purchase'),
+            onTap: () {
+              Navigator.pop(context);
+              _showComingSoon(context, 'Purchase');
+            },
+          ),
+
+          // Accounting
+          ListTile(
+            leading: const Icon(Icons.account_balance_wallet_outlined),
+            title: const Text('Accounting'),
+            onTap: () {
+              Navigator.pop(context);
+              _showComingSoon(context, 'Accounting');
+            },
+          ),
+
+          // Suppliers
+          ListTile(
+            leading: const Icon(Icons.local_shipping_outlined),
+            title: const Text('Suppliers'),
+            onTap: () {
+              Navigator.pop(context);
+              _showComingSoon(context, 'Suppliers');
+            },
+          ),
+
+          // Customers
+          ListTile(
+            leading: const Icon(Icons.people_outline),
+            title: const Text('Customers'),
+            onTap: () {
+              Navigator.pop(context);
+              _showComingSoon(context, 'Customers');
+            },
+          ),
+
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Text(
+              'PREFERENCES',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+
+          // Settings
+          ListTile(
+            leading: const Icon(Icons.settings_outlined),
+            title: const Text('Settings'),
+            onTap: () {
+              Navigator.pop(context);
+              _showComingSoon(context, 'Settings');
+            },
+          ),
+
+          // About
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('About'),
+            onTap: () {
+              Navigator.pop(context);
+              _showComingSoon(context, 'About');
+            },
           ),
         ],
+      ),
+    );
+  }
+
+  // এই feature গুলো এখনো বানানো হয়নি, তাই message দেখাচ্ছি
+  void _showComingSoon(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature feature coming soon!'),
+        backgroundColor: AppColors.info,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
