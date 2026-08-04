@@ -67,7 +67,7 @@ class KpiCard extends StatelessWidget {
                           ),
                   ),
                   const Spacer(),
-                  if (trendWidget != null) trendWidget,
+                  ?trendWidget,
                 ],
               ),
               const SizedBox(height: 12),
