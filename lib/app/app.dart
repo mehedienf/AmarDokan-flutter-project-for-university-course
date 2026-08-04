@@ -15,6 +15,7 @@ import 'package:amar_dokan/features/report/presentation/screens/report_screen.da
 import 'package:amar_dokan/features/sales/presentation/screens/sales_screen.dart';
 import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
 import 'package:amar_dokan/features/auth/presentation/screens/login_screen.dart';
+import 'package:amar_dokan/features/auth/presentation/screens/email_verification_screen.dart';
 
 /// Top-level gate that picks Splash / Login / MainApp based on auth state.
 class AuthGate extends StatefulWidget {
@@ -51,6 +52,9 @@ class _AuthGateState extends State<AuthGate> {
     }
     if (!auth.isAuthenticated) {
       return const LoginScreen();
+    }
+    if (!auth.isEmailVerified) {
+      return const EmailVerificationScreen();
     }
     return const MainApp();
   }

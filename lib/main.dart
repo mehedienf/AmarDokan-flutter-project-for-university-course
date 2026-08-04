@@ -12,6 +12,7 @@ import 'package:amar_dokan/features/purchase/providers/purchase_provider.dart';
 import 'package:amar_dokan/features/accounting/providers/transaction_provider.dart';
 import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
 import 'package:amar_dokan/core/providers/navigation_provider.dart';
+import 'package:amar_dokan/core/providers/theme_provider.dart';
 import 'package:amar_dokan/core/theme/app_theme.dart';
 import 'package:amar_dokan/features/report/providers/report_provider.dart';
 import 'package:amar_dokan/features/dashboard/providers/dashboard_provider.dart';
@@ -23,6 +24,11 @@ void main() async {
 
   // Firebase initialize করা হচ্ছে
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // ThemeProvider initialize করে SharedPreferences থেকে saved theme mode
+  // load করা হচ্ছে, যাতে প্রথম frame থেকেই user এর পছন্দ apply হয়।
+  final themeProvider = ThemeProvider();
+  await themeProvider.initialize();
 
   runApp(
     MultiProvider(
@@ -41,8 +47,9 @@ void main() async {
         // recompute() is called.
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        ChangeNotifierProvider<ThemeProvider>.value(value: themeProvider),
       ],
-      child: MyApp(),
+      child: const MyApp(),
     ),
   );
 }
@@ -52,12 +59,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Amar Dokan',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeProvider.themeMode,
       home: const AuthGate(),
     );
   }

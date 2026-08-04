@@ -43,6 +43,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _firebaseUser != null;
   String? get uid => _firebaseUser?.uid;
   String? get email => _firebaseUser?.email;
+  bool get isEmailVerified => _firebaseUser?.emailVerified ?? false;
   String? get displayName =>
       _firebaseUser?.displayName ?? _profile?.displayName;
   String? get photoURL => _firebaseUser?.photoURL ?? _profile?.photoURL;
@@ -136,6 +137,58 @@ class AuthProvider extends ChangeNotifier {
       await _service.sendPasswordReset(email);
       _setLoading(false);
       return true;
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = _mapFirebaseError(e);
+      _setLoading(false);
+      return false;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  /// Sends a verification email to the currently signed-in user.
+  /// Returns true on success; surfaces a friendly error otherwise.
+  Future<bool> sendVerificationEmail() async {
+    _setLoading(true);
+    _errorMessage = null;
+    try {
+      await _service.sendVerificationEmail();
+      _setLoading(false);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = _mapFirebaseError(e);
+      _setLoading(false);
+      return false;
+    } on AuthException catch (e) {
+      _errorMessage = e.message;
+      _setLoading(false);
+      return false;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  /// Forces a reload of the Firebase user and notifies listeners so
+  /// [isEmailVerified] reflects the latest server-side state. Call this
+  /// after the user taps the verification link in their inbox and
+  /// returns to the app.
+  Future<bool> reloadAndCheckVerification() async {
+    _setLoading(true);
+    _errorMessage = null;
+    try {
+      final updated = await _service.reloadUser();
+      // Manually refresh local state because the auth-state stream does
+      // not always emit for self-initiated reload() calls.
+      _firebaseUser = updated ?? _firebaseUser;
+      _setLoading(false);
+      // notifyListeners is already called from _setLoading; second call
+      // ensures listeners that compare the user reference get a tick.
+      notifyListeners();
+      return _firebaseUser?.emailVerified ?? false;
     } on FirebaseAuthException catch (e) {
       _errorMessage = _mapFirebaseError(e);
       _setLoading(false);

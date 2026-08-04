@@ -8,6 +8,7 @@ import 'package:amar_dokan/features/customers/presentation/screens/customers_scr
 import 'package:amar_dokan/features/suppliers/presentation/screens/suppliers_screen.dart';
 import 'package:amar_dokan/features/purchase/presentation/screens/purchase_screen.dart';
 import 'package:amar_dokan/features/accounting/presentation/screens/accounting_screen.dart';
+import 'package:amar_dokan/features/settings/presentation/screens/settings_screen.dart';
 import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
 
 /// Helper used by Sign Out tile to confirm before logging out.
@@ -194,7 +195,10 @@ class AppDrawer extends StatelessWidget {
             title: const Text('Settings'),
             onTap: () {
               Navigator.pop(context);
-              _showComingSoon(context, 'Settings');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
             },
           ),
 

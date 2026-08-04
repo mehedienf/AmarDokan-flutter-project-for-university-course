@@ -73,6 +73,33 @@ class AuthService {
   }
 
   // ============================================
+  // Email verification
+  // ============================================
+
+  /// Sends a verification email to the currently signed-in user.
+  /// Caller must ensure [currentUser] is non-null (e.g. an email/password
+  /// account that has just signed up or signed in).
+  Future<void> sendVerificationEmail() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AuthException('No signed-in user.');
+    }
+    if (user.emailVerified) return;
+    await user.sendEmailVerification();
+  }
+
+  /// Refreshes the cached [User] from Firebase so that
+  /// `User.emailVerified` reflects the latest server state. Useful after
+  /// the user has tapped the verification link in their inbox and
+  /// returned to the app.
+  Future<User?> reloadUser() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    await user.reload();
+    return _auth.currentUser;
+  }
+
+  // ============================================
   // Google Sign-In
   // ============================================
 
