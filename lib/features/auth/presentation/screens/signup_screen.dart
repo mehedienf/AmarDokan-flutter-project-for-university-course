@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:amar_dokan/core/constants/app_colors.dart';
+import 'package:amar_dokan/features/auth/data/models/user_model.dart';
 import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
 
 /// SignupScreen — Create a new account with email/password.
@@ -20,6 +21,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _confirmController = TextEditingController();
 
   bool _obscurePassword = true;
+  String? _selectedRole;
 
   @override
   void dispose() {
@@ -33,6 +35,11 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_selectedRole == null) {
+      setState(() {}); // surface the inline "please choose" hint
+      return;
+    }
+
     final auth = context.read<AuthProvider>();
     final ok = await auth.signUpWithEmail(
       email: _emailController.text.trim(),
@@ -40,6 +47,7 @@ class _SignupScreenState extends State<SignupScreen> {
       displayName: _nameController.text.trim().isEmpty
           ? null
           : _nameController.text.trim(),
+      role: _selectedRole ?? UserRole.defaultRole,
     );
 
     if (!mounted) return;
@@ -177,6 +185,46 @@ class _SignupScreenState extends State<SignupScreen> {
                       return null;
                     },
                   ),
+                  const SizedBox(height: 20),
+
+                  // Account role
+                  Text(
+                    'Account role',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment<String>(
+                          value: UserRole.admin,
+                          label: Text('Admin / Owner'),
+                          icon: Icon(Icons.admin_panel_settings_outlined),
+                        ),
+                        ButtonSegment<String>(
+                          value: UserRole.staff,
+                          label: Text('Staff'),
+                          icon: Icon(Icons.person_outline),
+                        ),
+                      ],
+                      selected: _selectedRole == null
+                          ? <String>{}
+                          : <String>{_selectedRole!},
+                      onSelectionChanged: (s) {
+                        setState(
+                          () => _selectedRole = s.isEmpty ? null : s.first,
+                        );
+                      },
+                    ),
+                  ),
+                  if (_selectedRole == null) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Please choose a role to continue.',
+                      style: TextStyle(color: AppColors.error, fontSize: 12),
+                    ),
+                  ],
                   const SizedBox(height: 16),
 
                   // Error message

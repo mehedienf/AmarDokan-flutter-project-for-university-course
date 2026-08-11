@@ -48,6 +48,12 @@ class AuthProvider extends ChangeNotifier {
       _firebaseUser?.displayName ?? _profile?.displayName;
   String? get photoURL => _firebaseUser?.photoURL ?? _profile?.photoURL;
 
+  /// Role from the Firestore profile. Defaults to staff if the profile
+  /// hasn't loaded yet (safe for nav gating — staff can only see sales).
+  String get role => _profile?.role ?? UserRole.defaultRole;
+  bool get isAdmin => UserRole.isAdmin(role);
+  bool get isStaff => UserRole.isStaff(role);
+
   // ============================================
   // Lifecycle
   // ============================================
@@ -116,12 +122,14 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     String? displayName,
+    String role = UserRole.defaultRole,
   }) async {
     return _runAuth(
       () => _service.signUpWithEmail(
         email: email,
         password: password,
         displayName: displayName,
+        role: role,
       ),
     );
   }

@@ -8,6 +8,7 @@ import 'package:amar_dokan/features/customers/presentation/screens/customers_scr
 import 'package:amar_dokan/features/suppliers/presentation/screens/suppliers_screen.dart';
 import 'package:amar_dokan/features/purchase/presentation/screens/purchase_screen.dart';
 import 'package:amar_dokan/features/accounting/presentation/screens/accounting_screen.dart';
+import 'package:amar_dokan/features/due/presentation/screens/due_screen.dart';
 import 'package:amar_dokan/features/settings/presentation/screens/settings_screen.dart';
 import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
 
@@ -40,6 +41,8 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAdmin = context.watch<AuthProvider>().isAdmin;
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -111,72 +114,91 @@ class AppDrawer extends StatelessWidget {
           ),
 
           // Divider
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Text(
-              'MANAGEMENT',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textSecondary,
+          if (isAdmin) const Divider(),
+          if (isAdmin)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Text(
+                'MANAGEMENT',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
-          ),
 
-          // Purchase
-          ListTile(
-            leading: const Icon(Icons.shopping_cart_outlined),
-            title: const Text('Purchase'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PurchaseScreen()),
-              );
-            },
-          ),
+          // Purchase (admin only)
+          if (isAdmin)
+            ListTile(
+              leading: const Icon(Icons.shopping_cart_outlined),
+              title: const Text('Purchase'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PurchaseScreen()),
+                );
+              },
+            ),
 
-          // Accounting
-          ListTile(
-            leading: const Icon(Icons.account_balance_wallet_outlined),
-            title: const Text('Accounting'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AccountingScreen()),
-              );
-            },
-          ),
+          // Due (admin only)
+          if (isAdmin)
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet_outlined),
+              title: const Text('Due'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DueScreen()),
+                );
+              },
+            ),
 
-          // Suppliers
-          ListTile(
-            leading: const Icon(Icons.local_shipping_outlined),
-            title: const Text('Suppliers'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SuppliersScreen()),
-              );
-            },
-          ),
+          // Accounting (admin only)
+          if (isAdmin)
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet_outlined),
+              title: const Text('Accounting'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AccountingScreen()),
+                );
+              },
+            ),
 
-          // Customers
-          ListTile(
-            leading: const Icon(Icons.people_outline),
-            title: const Text('Customers'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CustomersScreen()),
-              );
-            },
-          ),
+          // Suppliers (admin only)
+          if (isAdmin)
+            ListTile(
+              leading: const Icon(Icons.local_shipping_outlined),
+              title: const Text('Suppliers'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SuppliersScreen()),
+                );
+              },
+            ),
 
-          const Divider(),
+          // Customers (admin only)
+          if (isAdmin)
+            ListTile(
+              leading: const Icon(Icons.people_outline),
+              title: const Text('Customers'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CustomersScreen()),
+                );
+              },
+            ),
+
+          if (isAdmin) const Divider(),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Text(

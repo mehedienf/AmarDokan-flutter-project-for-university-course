@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:amar_dokan/core/constants/app_colors.dart';
 import 'package:amar_dokan/features/customers/data/models/customer_model.dart';
 import 'package:amar_dokan/features/customers/providers/customer_provider.dart';
+import 'package:amar_dokan/features/purchase/providers/purchase_provider.dart';
+import 'package:amar_dokan/features/sales/providers/sale_provider.dart';
 import 'package:amar_dokan/features/suppliers/data/models/supplier_model.dart';
 import 'package:amar_dokan/features/suppliers/providers/supplier_provider.dart';
 import 'package:amar_dokan/features/accounting/data/models/transaction_model.dart';
@@ -52,6 +54,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String? _partyId;
   String? _partyName;
   String? _partyType; // 'customer' | 'supplier' | null
+
+  /// When this transaction is paying off an unpaid invoice, the id of
+  /// that sale (customer payment) or purchase (supplier payment).
+  String? _linkedInvoiceId;
+  String? _linkedInvoiceNumber;
+  double _linkedInvoiceBalance = 0;
+  String? _linkedInvoiceType; // 'sale' | 'purchase'
   DateTime _transactionDate = DateTime.now();
   bool _isSubmitting = false;
   String? _referenceNumber;
@@ -126,6 +135,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (_partyType != null && _partyType != expectedType) {
       _partyId = null;
       _partyName = null;
+      _linkedInvoiceId = null;
+      _linkedInvoiceNumber = null;
+      _linkedInvoiceBalance = 0;
+      _linkedInvoiceType = null;
     }
     final result = isIncome
         ? await _pickFromList<CustomerModel>(
@@ -144,7 +157,256 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _partyId = result.id;
       _partyName = result.label;
       _partyType = isIncome ? 'customer' : 'supplier';
+      // Reset linked invoice when party changes.
+      _linkedInvoiceId = null;
+      _linkedInvoiceNumber = null;
+      _linkedInvoiceBalance = 0;
+      _linkedInvoiceType = null;
     });
+  }
+
+  /// True when the chosen category should let us link an open invoice.
+  bool get _canLinkInvoice {
+    if (_partyId == null) return false;
+    if (_category == TransactionCategory.customerPayment) return true;
+    if (_category == TransactionCategory.supplierPayment) return true;
+    return false;
+  }
+
+  Future<void> _pickLinkedInvoice() async {
+    final isIncome = _type == TransactionType.income;
+    final picked = isIncome
+        ? await _pickOpenSale(_partyId!)
+        : await _pickOpenPurchase(_partyId!);
+    if (picked == null) return;
+    setState(() {
+      _linkedInvoiceId = picked.id;
+      _linkedInvoiceNumber = picked.number;
+      _linkedInvoiceBalance = picked.balance;
+      _linkedInvoiceType = isIncome ? 'sale' : 'purchase';
+    });
+  }
+
+  Future<_InvoiceChoice?> _pickOpenSale(String customerId) async {
+    return showModalBottomSheet<_InvoiceChoice>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.6,
+          maxChildSize: 0.9,
+          minChildSize: 0.4,
+          builder: (_, scrollController) {
+            final open = ctx
+                .watch<SaleProvider>()
+                .sales
+                .where((s) => s.customerId == customerId && s.balance > 0)
+                .toList()
+              ..sort((a, b) => b.balance.compareTo(a.balance));
+
+            return SafeArea(
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.receipt_long,
+                            color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Pick open invoice',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: open.isEmpty
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Text(
+                                'No open invoices for this customer.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            controller: scrollController,
+                            itemCount: open.length,
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1),
+                            itemBuilder: (_, i) {
+                              final s = open[i];
+                              return ListTile(
+                                leading: const CircleAvatar(
+                                  backgroundColor: AppColors.primary,
+                                  child: Icon(Icons.sell,
+                                      color: Colors.white),
+                                ),
+                                title: Text(s.invoiceNumber),
+                                subtitle: Text(
+                                  'Total ৳${s.total.toStringAsFixed(2)} • '
+                                  'Paid ৳${s.paidAmount.toStringAsFixed(2)}',
+                                ),
+                                trailing: Text(
+                                  '৳${s.balance.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    color: AppColors.error,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                onTap: () => Navigator.pop(
+                                  ctx,
+                                  _InvoiceChoice(
+                                    id: s.id,
+                                    number: s.invoiceNumber,
+                                    balance: s.balance,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<_InvoiceChoice?> _pickOpenPurchase(String supplierId) async {
+    return showModalBottomSheet<_InvoiceChoice>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.6,
+          maxChildSize: 0.9,
+          minChildSize: 0.4,
+          builder: (_, scrollController) {
+            final open = ctx
+                .watch<PurchaseProvider>()
+                .purchases
+                .where((p) => p.supplierId == supplierId && p.balance > 0)
+                .toList()
+              ..sort((a, b) => b.balance.compareTo(a.balance));
+
+            return SafeArea(
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.receipt_long,
+                            color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Pick open invoice',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: open.isEmpty
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Text(
+                                'No open invoices for this supplier.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            controller: scrollController,
+                            itemCount: open.length,
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1),
+                            itemBuilder: (_, i) {
+                              final p = open[i];
+                              return ListTile(
+                                leading: const CircleAvatar(
+                                  backgroundColor: AppColors.primary,
+                                  child: Icon(Icons.shopping_bag,
+                                      color: Colors.white),
+                                ),
+                                title: Text(p.invoiceNumber),
+                                subtitle: Text(
+                                  'Total ৳${p.total.toStringAsFixed(2)} • '
+                                  'Paid ৳${p.paidAmount.toStringAsFixed(2)}',
+                                ),
+                                trailing: Text(
+                                  '৳${p.balance.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    color: AppColors.error,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                onTap: () => Navigator.pop(
+                                  ctx,
+                                  _InvoiceChoice(
+                                    id: p.id,
+                                    number: p.invoiceNumber,
+                                    balance: p.balance,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<_PartyChoice?> _pickFromList<T>({
@@ -266,6 +528,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         category: _category,
         amount: amount,
         paymentMethod: _paymentMethod,
+        referenceId: _linkedInvoiceId,
+        referenceType: _linkedInvoiceType,
         partyId: _partyId,
         partyName: _partyName,
         description: _descriptionController.text.trim().isEmpty
@@ -280,7 +544,46 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
 
       final provider = context.read<TransactionProvider>();
+      // Capture linked-provider references before the await so we don't
+      // touch `context` across an async gap.
+      final SaleProvider? saleProvider = _linkedInvoiceType == 'sale'
+          ? context.read<SaleProvider>()
+          : null;
+      final PurchaseProvider? purchaseProvider =
+          _linkedInvoiceType == 'purchase'
+              ? context.read<PurchaseProvider>()
+              : null;
       await provider.addTransaction(tx);
+
+      // If a party is paying off an open invoice, atomically bump that
+      // invoice's paidAmount so the Due screen reflects the reduction.
+      if (_linkedInvoiceId != null && _linkedInvoiceType != null) {
+        if (_linkedInvoiceType == 'sale' && saleProvider != null) {
+          final ok = await saleProvider.recordPayment(
+            saleId: _linkedInvoiceId!,
+            amount: amount,
+          );
+          if (!ok && mounted) {
+            _showSnack(
+              'Saved, but failed to update the linked sale.',
+              isError: true,
+            );
+          }
+        } else if (_linkedInvoiceType == 'purchase' &&
+            purchaseProvider != null) {
+          final ok = await purchaseProvider.recordPayment(
+            purchaseId: _linkedInvoiceId!,
+            amount: amount,
+          );
+          if (!ok && mounted) {
+            _showSnack(
+              'Saved, but failed to update the linked purchase.',
+              isError: true,
+            );
+          }
+        }
+      }
+
       if (!mounted) return;
       _showSnack('Transaction added successfully');
       Navigator.pop(context, true);
@@ -364,6 +667,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               isIncome ? 'Customer (Optional)' : 'Supplier (Optional)',
             ),
             _partyField(isIncome),
+            if (_canLinkInvoice) ...[
+              const SizedBox(height: 16),
+              _sectionLabel(
+                isIncome
+                    ? 'Apply to invoice (Optional)'
+                    : 'Apply to purchase (Optional)',
+              ),
+              _linkedInvoiceField(),
+            ],
             const SizedBox(height: 16),
             _sectionLabel('Transaction Date'),
             _dateField(),
@@ -620,6 +932,67 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
+  Widget _linkedInvoiceField() {
+    final hasLink = _linkedInvoiceId != null;
+    return InputDecorator(
+      decoration: InputDecoration(
+        border: const OutlineInputBorder(),
+        suffixIcon: hasLink
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () => setState(() {
+                  _linkedInvoiceId = null;
+                  _linkedInvoiceNumber = null;
+                  _linkedInvoiceBalance = 0;
+                  _linkedInvoiceType = null;
+                }),
+              )
+            : const Icon(Icons.arrow_drop_down),
+      ),
+      child: InkWell(
+        onTap: _pickLinkedInvoice,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.receipt_long,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: hasLink
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _linkedInvoiceNumber!,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Outstanding: ৳${_linkedInvoiceBalance.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.error.withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        'Tap to select open invoice',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
   Widget _dateField() {
     return InputDecorator(
       decoration: const InputDecoration(
@@ -644,4 +1017,17 @@ class _PartyChoice {
   final String id;
   final String label;
   _PartyChoice({required this.id, required this.label});
+}
+
+/// Result of picking an open invoice (sale or purchase) inside the
+/// payment-against-invoice flow.
+class _InvoiceChoice {
+  final String id;
+  final String number;
+  final double balance;
+  _InvoiceChoice({
+    required this.id,
+    required this.number,
+    required this.balance,
+  });
 }

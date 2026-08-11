@@ -4,14 +4,28 @@ import 'package:provider/provider.dart';
 import 'package:amar_dokan/features/customers/data/models/customer_model.dart';
 import 'package:amar_dokan/features/customers/providers/customer_provider.dart';
 import 'package:amar_dokan/features/customers/presentation/screens/edit_customer_screen.dart';
+import 'package:amar_dokan/features/sales/data/models/sale_model.dart';
+import 'package:amar_dokan/features/sales/providers/sale_provider.dart';
 import 'package:amar_dokan/core/constants/app_colors.dart';
 
 /// Customer Details Screen
 /// Customer এর সব info একসাথে দেখায় + Edit/Delete actions
-class CustomerDetailsScreen extends StatelessWidget {
+///
+/// Note: totalOrders / totalPurchases / lastPurchaseDate পুরনো persisted
+/// fields যেগুলো কোথাও write হয় না। এই screen-এ আমরা SaleProvider থেকে
+/// sales গুনে live aggregate করি, যাতে নতুন sale হলে totals তাৎক্ষণিকভাবে
+/// refresh হয়।
+class CustomerDetailsScreen extends StatefulWidget {
   final CustomerModel customer;
 
   const CustomerDetailsScreen({super.key, required this.customer});
+
+  @override
+  State<CustomerDetailsScreen> createState() => _CustomerDetailsScreenState();
+}
+
+class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
+  CustomerModel get customer => widget.customer;
 
   // Delete confirmation
   Future<void> _showDeleteDialog(BuildContext context) async {
@@ -253,65 +267,95 @@ class CustomerDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildPurchaseCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
+    // Watch SaleProvider so totals refresh automatically when a sale is
+    // added, updated, or removed.
+    return Consumer<SaleProvider>(
+      builder: (context, saleProvider, _) {
+        final stats = _computePurchaseStats(saleProvider.sales);
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.shopping_bag_outlined, color: AppColors.primary),
-                SizedBox(width: 8),
-                Text(
-                  'Purchase Summary',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                const Row(
+                  children: [
+                    Icon(Icons.shopping_bag_outlined, color: AppColors.primary),
+                    SizedBox(width: 8),
+                    Text(
+                      'Purchase Summary',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatBox(
+                      label: 'Total Orders',
+                      value: '${stats.totalOrders}',
+                      color: AppColors.primary,
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: AppColors.textSecondary.withValues(alpha: 0.2),
+                    ),
+                    _buildStatBox(
+                      label: 'Total Spent',
+                      value: '৳${stats.totalSpent.toStringAsFixed(0)}',
+                      color: AppColors.success,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildInfoRow(
+                  Icons.event_outlined,
+                  'Last Purchase',
+                  stats.lastPurchaseDate != null
+                      ? _formatDate(stats.lastPurchaseDate!)
+                      : 'No purchases yet',
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                _buildInfoRow(
+                  Icons.calendar_today,
+                  'Customer Since',
+                  _formatDate(customer.createdAt),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatBox(
-                  label: 'Total Orders',
-                  value: '${customer.totalOrders}',
-                  color: AppColors.primary,
-                ),
-                Container(
-                  width: 1,
-                  height: 40,
-                  color: AppColors.textSecondary.withValues(alpha: 0.2),
-                ),
-                _buildStatBox(
-                  label: 'Total Spent',
-                  value: '৳${customer.totalPurchases.toStringAsFixed(0)}',
-                  color: AppColors.success,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildInfoRow(
-              Icons.event_outlined,
-              'Last Purchase',
-              customer.lastPurchaseDate != null
-                  ? _formatDate(customer.lastPurchaseDate!)
-                  : 'No purchases yet',
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              Icons.calendar_today,
-              'Customer Since',
-              _formatDate(customer.createdAt),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Live aggregation: sum totals + count orders + find last sale date for
+  /// this customer. Returns zeros / null when no matching sales exist.
+  _PurchaseStats _computePurchaseStats(List<SaleModel> sales) {
+    int totalOrders = 0;
+    double totalSpent = 0.0;
+    DateTime? lastPurchaseDate;
+    final id = customer.id;
+    for (final s in sales) {
+      if (s.customerId != id) continue;
+      totalOrders += 1;
+      totalSpent += s.total;
+      final d = s.saleDate ?? s.createdAt;
+      if (lastPurchaseDate == null || d.isAfter(lastPurchaseDate)) {
+        lastPurchaseDate = d;
+      }
+    }
+    return _PurchaseStats(
+      totalOrders: totalOrders,
+      totalSpent: totalSpent,
+      lastPurchaseDate: lastPurchaseDate,
     );
   }
 
@@ -399,4 +443,19 @@ class CustomerDetailsScreen extends StatelessWidget {
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
   }
+}
+
+/// Aggregated purchase stats for a single customer, computed live from
+/// `SaleProvider`. Keeps the totals in sync with new sales without relying
+/// on the (unmaintained) persisted `totalOrders` / `totalPurchases` fields.
+class _PurchaseStats {
+  final int totalOrders;
+  final double totalSpent;
+  final DateTime? lastPurchaseDate;
+
+  const _PurchaseStats({
+    required this.totalOrders,
+    required this.totalSpent,
+    required this.lastPurchaseDate,
+  });
 }

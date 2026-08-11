@@ -297,6 +297,26 @@ class SaleProvider extends ChangeNotifier {
     }
   }
 
+  /// Record a payment received against a sale (e.g. customer paying off
+  /// a partial sale). The Firestore stream will refresh `_sales` and the
+  /// Due screen will show the reduced balance automatically.
+  Future<bool> recordPayment({
+    required String saleId,
+    required double amount,
+  }) async {
+    try {
+      await _service.recordPaymentAgainstSale(
+        saleId: saleId,
+        amount: amount,
+      );
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Sale delete করো
   Future<bool> deleteSale(String saleId) async {
     try {

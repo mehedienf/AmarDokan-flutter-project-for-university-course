@@ -312,6 +312,25 @@ class PurchaseProvider extends ChangeNotifier {
     }
   }
 
+  /// Record a payment made against a purchase (we pay the supplier).
+  /// Mirrors SaleProvider.recordPayment.
+  Future<bool> recordPayment({
+    required String purchaseId,
+    required double amount,
+  }) async {
+    try {
+      await _service.recordPaymentAgainstPurchase(
+        purchaseId: purchaseId,
+        amount: amount,
+      );
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Purchase delete করো (stock auto-decrement হবে service এ)।
   Future<bool> deletePurchase(String purchaseId) async {
     try {

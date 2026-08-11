@@ -22,7 +22,7 @@ void main() async {
   // Flutter এ async কাজ করার আগে WidgetsFlutterBinding ensure করতে হয়
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase initialize করা হচ্ছে
+  // Firebase initialize 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // ThemeProvider initialize করে SharedPreferences থেকে saved theme mode

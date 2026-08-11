@@ -119,6 +119,52 @@ class SaleService {
     });
   }
 
+  /// Record a payment received against an existing sale (e.g. customer
+  /// settles a partial sale). Atomically bumps `paidAmount`, recomputes
+  /// `paymentStatus`, and stamps `updatedAt`. Refuses to over-pay.
+  ///
+  /// Returns the new paidAmount after the write. Throws on sale-not-found
+  /// or when amount is non-positive / would exceed total.
+  Future<double> recordPaymentAgainstSale({
+    required String saleId,
+    required double amount,
+  }) async {
+    if (amount <= 0) {
+      throw ArgumentError('Payment amount must be positive');
+    }
+    final collection = _salesCollection;
+    if (collection == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final docRef = collection.doc(saleId);
+    final doc = await docRef.get();
+    if (!doc.exists) {
+      throw Exception('Sale not found: $saleId');
+    }
+    final sale = SaleModel.fromFirestore(
+      doc.data() as Map<String, dynamic>,
+      doc.id,
+    );
+
+    final remaining = sale.total - sale.paidAmount;
+    if (remaining <= 0) {
+      throw Exception('This sale is already fully paid');
+    }
+    final newPaid = (sale.paidAmount + amount).clamp(0.0, sale.total);
+    final newStatus = newPaid >= sale.total
+        ? 'paid'
+        : (newPaid > 0 ? 'partial' : 'unpaid');
+
+    await docRef.update({
+      'paidAmount': newPaid,
+      'paymentStatus': newStatus,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    return newPaid.toDouble();
+  }
+
   Future<void> deleteSale(String saleId) async {
     final collection = _salesCollection;
     if (collection == null) {

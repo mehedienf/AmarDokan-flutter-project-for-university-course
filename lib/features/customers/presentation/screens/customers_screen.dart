@@ -5,6 +5,7 @@ import 'package:amar_dokan/features/customers/data/models/customer_model.dart';
 import 'package:amar_dokan/features/customers/providers/customer_provider.dart';
 import 'package:amar_dokan/features/customers/presentation/widgets/customer_form.dart';
 import 'package:amar_dokan/features/customers/presentation/screens/customer_details_screen.dart';
+import 'package:amar_dokan/features/sales/providers/sale_provider.dart';
 import 'package:amar_dokan/core/constants/app_colors.dart';
 
 /// Customers Screen - Customer list with Firestore backend
@@ -258,47 +259,58 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final customer = filtered[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      child: ListTile(
-                        onTap: () => _navigateToDetails(context, customer),
-                        leading: CircleAvatar(
-                          backgroundColor: customer.isActive
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
-                          child: Text(
-                            customer.initials,
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        ),
-                        title: Text(
-                          customer.name,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          customer.hasEmail
-                              ? '${customer.phone} • ${customer.email}'
-                              : customer.phone,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: customer.hasOrdered
-                            ? Text(
-                                '৳${customer.totalPurchases.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  color: AppColors.success,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              )
-                            : IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: AppColors.error,
-                                ),
-                                onPressed: () =>
-                                    _showDeleteDialog(context, customer),
+                    return Consumer<SaleProvider>(
+                      builder: (context, saleProvider, _) {
+                        final totalSpent = saleProvider.sales
+                            .where((s) => s.customerId == customer.id)
+                            .fold<double>(0.0, (sum, s) => sum + s.total);
+                        final hasOrders = totalSpent > 0;
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          child: ListTile(
+                            onTap: () => _navigateToDetails(context, customer),
+                            leading: CircleAvatar(
+                              backgroundColor: customer.isActive
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
+                              child: Text(
+                                customer.initials,
+                                style: const TextStyle(color: Colors.white),
                               ),
-                      ),
+                            ),
+                            title: Text(
+                              customer.name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              customer.hasEmail
+                                  ? '${customer.phone} • ${customer.email}'
+                                  : customer.phone,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: hasOrders
+                                ? Text(
+                                    '৳${totalSpent.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                      color: AppColors.success,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  )
+                                : IconButton(
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: AppColors.error,
+                                    ),
+                                    onPressed: () => _showDeleteDialog(
+                                      context,
+                                      customer,
+                                    ),
+                                  ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );

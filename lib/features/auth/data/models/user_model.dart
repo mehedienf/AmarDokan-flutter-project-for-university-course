@@ -6,6 +6,20 @@ class AuthProviderId {
   static const String google = 'google.com';
 }
 
+/// Role assigned to a user — controls which screens are reachable.
+///
+/// Admin / Owner: full access. Staff: can only create sales.
+class UserRole {
+  static const String admin = 'admin';
+  static const String staff = 'staff';
+
+  /// Default role when none is recorded (legacy accounts, OAuth, etc.).
+  static const String defaultRole = staff;
+
+  static bool isAdmin(String? role) => role == admin;
+  static bool isStaff(String? role) => role == staff;
+}
+
 /// UserModel - Firebase Auth user profile stored in Firestore `users` collection.
 ///
 /// Holds profile fields surfaced from FirebaseAuth + extra metadata we
@@ -19,6 +33,7 @@ class UserModel {
   final String? phoneNumber;
   final String providerId;
   final bool emailVerified;
+  final String role;
   final DateTime? lastSignInAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -33,6 +48,7 @@ class UserModel {
     this.photoURL,
     this.phoneNumber,
     this.emailVerified = false,
+    this.role = UserRole.defaultRole,
     this.lastSignInAt,
   });
 
@@ -64,6 +80,9 @@ class UserModel {
   bool get isGoogleUser => providerId == AuthProviderId.google;
   bool get isEmailUser => providerId == AuthProviderId.email;
 
+  bool get isAdmin => UserRole.isAdmin(role);
+  bool get isStaff => UserRole.isStaff(role);
+
   // ============================================
   // Firestore serialization
   // ============================================
@@ -80,6 +99,7 @@ class UserModel {
       phoneNumber: data['phoneNumber'] as String?,
       providerId: data['providerId'] ?? AuthProviderId.email,
       emailVerified: data['emailVerified'] ?? false,
+      role: (data['role'] as String?) ?? UserRole.defaultRole,
       lastSignInAt: (data['lastSignInAt'] as Timestamp?)?.toDate(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -94,6 +114,7 @@ class UserModel {
       'phoneNumber': phoneNumber,
       'providerId': providerId,
       'emailVerified': emailVerified,
+      'role': role,
       'lastSignInAt': lastSignInAt == null
           ? null
           : Timestamp.fromDate(lastSignInAt!),
@@ -113,6 +134,7 @@ class UserModel {
     String? phoneNumber,
     String? providerId,
     bool? emailVerified,
+    String? role,
     DateTime? lastSignInAt,
     DateTime? updatedAt,
   }) {
@@ -124,6 +146,7 @@ class UserModel {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       providerId: providerId ?? this.providerId,
       emailVerified: emailVerified ?? this.emailVerified,
+      role: role ?? this.role,
       lastSignInAt: lastSignInAt ?? this.lastSignInAt,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

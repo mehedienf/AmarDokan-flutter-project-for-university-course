@@ -141,6 +141,48 @@ class PurchaseService {
     });
   }
 
+  /// Record a payment made to settle a purchase (we pay the supplier).
+  /// Mirrors SaleService.recordPaymentAgainstSale.
+  Future<double> recordPaymentAgainstPurchase({
+    required String purchaseId,
+    required double amount,
+  }) async {
+    if (amount <= 0) {
+      throw ArgumentError('Payment amount must be positive');
+    }
+    final collection = _purchasesCollection;
+    if (collection == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final docRef = collection.doc(purchaseId);
+    final doc = await docRef.get();
+    if (!doc.exists) {
+      throw Exception('Purchase not found: $purchaseId');
+    }
+    final purchase = PurchaseModel.fromFirestore(
+      doc.data() as Map<String, dynamic>,
+      doc.id,
+    );
+
+    final remaining = purchase.total - purchase.paidAmount;
+    if (remaining <= 0) {
+      throw Exception('This purchase is already fully paid');
+    }
+    final newPaid = (purchase.paidAmount + amount).clamp(0.0, purchase.total);
+    final newStatus = newPaid >= purchase.total
+        ? 'paid'
+        : (newPaid > 0 ? 'partial' : 'unpaid');
+
+    await docRef.update({
+      'paidAmount': newPaid,
+      'paymentStatus': newStatus,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    return newPaid.toDouble();
+  }
+
   /// Delete a purchase AND decrement product stock for each item.
   Future<void> deletePurchase(String purchaseId) async {
     final collection = _purchasesCollection;

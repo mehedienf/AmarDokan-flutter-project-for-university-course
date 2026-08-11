@@ -55,6 +55,7 @@ class AuthService {
     required String email,
     required String password,
     String? displayName,
+    String role = UserRole.defaultRole,
   }) async {
     final cred = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
@@ -63,7 +64,7 @@ class AuthService {
     if (displayName != null && displayName.trim().isNotEmpty) {
       await cred.user?.updateDisplayName(displayName.trim());
     }
-    await _ensureUserProfile(cred.user);
+    await _ensureUserProfile(cred.user, role: role);
     await _updateLastSignIn(cred.user?.uid);
     return cred;
   }
@@ -123,7 +124,7 @@ class AuthService {
     );
 
     final cred = await _auth.signInWithCredential(credential);
-    await _ensureUserProfile(cred.user);
+    await _ensureUserProfile(cred.user, role: UserRole.admin);
     await _updateLastSignIn(cred.user?.uid);
     return cred;
   }
@@ -159,7 +160,7 @@ class AuthService {
   }
 
   /// Creates the profile doc if missing. Used after first sign-in.
-  Future<void> _ensureUserProfile(User? user) async {
+  Future<void> _ensureUserProfile(User? user, {String role = UserRole.defaultRole}) async {
     if (user == null) return;
     final ref = _userDoc(user.uid);
     final snap = await ref.get();
@@ -173,6 +174,7 @@ class AuthService {
       phoneNumber: user.phoneNumber,
       providerId: _detectProviderId(user),
       emailVerified: user.emailVerified,
+      role: role,
       lastSignInAt: now,
       createdAt: now,
       updatedAt: now,

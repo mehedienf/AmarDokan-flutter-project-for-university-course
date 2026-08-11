@@ -6,6 +6,7 @@ import 'package:amar_dokan/features/sales/providers/sale_provider.dart';
 import 'package:amar_dokan/features/sales/presentation/screens/sale_details_screen.dart';
 import 'package:amar_dokan/features/sales/presentation/screens/create_sale_screen.dart';
 import 'package:amar_dokan/core/constants/app_colors.dart';
+import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
 
 /// Sales Screen - All sales with filters
 ///
@@ -509,19 +510,23 @@ class _SalesScreenState extends State<SalesScreen> {
                     onSelected: (v) {
                       if (v == 'delete') _showDeleteDialog(sale);
                     },
-                    itemBuilder: (ctx) => [
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline,
-                                color: AppColors.error, size: 20),
-                            SizedBox(width: 8),
-                            Text('Delete'),
-                          ],
+                    itemBuilder: (ctx) {
+                      final isAdmin = ctx.read<AuthProvider>().isAdmin;
+                      if (!isAdmin) return const <PopupMenuEntry<String>>[];
+                      return const [
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline,
+                                  color: AppColors.error, size: 20),
+                              SizedBox(width: 8),
+                              Text('Delete'),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ];
+                    },
                   ),
                 ],
               ),
