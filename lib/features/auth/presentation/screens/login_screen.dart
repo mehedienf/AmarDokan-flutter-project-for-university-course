@@ -115,6 +115,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppColors.textSecondary),
                 ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Daily charge is 2.78 BDT (including VAT, SD & SC). '
+                  'For Robi and Cirkle users only.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(height: 32),
                 TextField(
                   controller: _phoneController,
