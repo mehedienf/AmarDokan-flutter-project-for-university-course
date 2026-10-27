@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Amar Dokan is a simple inventory and sales management app for small businesses."
+    />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Amar Dokan | Smart shop management</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Amar Dokan home">
+        <img class="brand-logo" src="assets/logo.jpg" alt="" />
+        <span>Amar Dokan</span>
+      </a>
+      <a class="header-link" href="#features">Features</a>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">YOUR SHOP, SIMPLIFIED</p>
+          <h1>Run your shop with confidence.</h1>
+          <p class="hero-text">
+            Amar Dokan helps you manage inventory, sales, purchases, customers,
+            and suppliers from one simple app.
+          </p>
+          <div class="download-area">
+            <a class="download-button" href="downloads/AmarDokan.apk">
+              <span class="download-icon" aria-hidden="true">↓</span>
+              <span>
+                <small>DOWNLOAD THE APP</small>
+                <strong>Get Amar Dokan</strong>
+              </span>
+            </a>
+            <p class="charge-note">
+              Daily charge is 2.78 BDT (including VAT, SD &amp; SC). For Robi
+              and Cirkle users only.
+            </p>
+          </div>
+        </div>
+
+        <div class="hero-card" aria-label="Amar Dokan app preview">
+          <div class="card-top">
+            <img class="brand-logo small" src="assets/logo.jpg" alt="" />
+            <span class="status-dot">●</span>
+          </div>
+          <p class="preview-label">TODAY'S OVERVIEW</p>
+          <div class="sales-total">৳ 24,850</div>
+          <p class="sales-caption">Total sales</p>
+          <div class="chart" aria-hidden="true">
+            <span style="height: 38%"></span>
+            <span style="height: 58%"></span>
+            <span style="height: 46%"></span>
+            <span style="height: 78%"></span>
+            <span style="height: 66%"></span>
+            <span style="height: 92%"></span>
+            <span style="height: 74%"></span>
+          </div>
+          <div class="preview-footer">
+            <span>Inventory</span>
+            <strong>128 items</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="features" id="features">
+        <p class="eyebrow">EVERYTHING IN ONE PLACE</p>
+        <h2>Built for your everyday business.</h2>
+        <div class="feature-grid">
+          <article class="feature">
+            <span class="feature-icon">▦</span>
+            <h3>Track inventory</h3>
+            <p>Know what is in stock and keep your product records organized.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-icon">↗</span>
+            <h3>Manage sales</h3>
+            <p>Record sales quickly and understand how your shop is performing.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-icon">৳</span>
+            <h3>Stay in control</h3>
+            <p>Keep customers, suppliers, purchases, and accounts together.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-icon">◷</span>
+            <h3>Save valuable time</h3>
+            <p>Find products, record transactions, and update stock in seconds.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-icon">♧</span>
+            <h3>Manage customers</h3>
+            <p>Keep customer details and due information ready when you need it.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-icon">▥</span>
+            <h3>See useful reports</h3>
+            <p>Make better decisions with clear sales, purchase, and profit views.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="workflow">
+        <div class="section-heading">
+          <p class="eyebrow">A BETTER WAY TO WORK</p>
+          <h2>From first sale to daily report.</h2>
+        </div>
+        <div class="steps">
+          <article class="step">
+            <span class="step-number">01</span>
+            <h3>Add your products</h3>
+            <p>Build your product list with prices, stock quantity, and useful details.</p>
+          </article>
+          <article class="step">
+            <span class="step-number">02</span>
+            <h3>Record transactions</h3>
+            <p>Track sales and purchases while the app keeps your inventory updated.</p>
+          </article>
+          <article class="step">
+            <span class="step-number">03</span>
+            <h3>Grow with insight</h3>
+            <p>Use your reports to understand your shop and plan the next step.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="numbers">
+        <div>
+          <strong>01</strong>
+          <span>simple workspace</span>
+        </div>
+        <div>
+          <strong>06+</strong>
+          <span>business tools</span>
+        </div>
+        <div>
+          <strong>24/7</strong>
+          <span>access to your records</span>
+        </div>
+      </section>
+
+      <section class="subscribe" id="subscribe">
+        <div>
+          <p class="eyebrow">GET STARTED TODAY</p>
+          <h2>Make your shop easier to manage.</h2>
+          <p>
+            Enter your mobile number to subscribe through BDApps. We will send
+            a verification code to complete the subscription.
+          </p>
+        </div>
+        <form class="subscribe-form" id="subscribe-form">
+          <label for="phone">Mobile number</label>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            inputmode="tel"
+            placeholder="018********"
+            pattern="01[0-9]{9}"
+            required
+          />
+          <button id="send-otp-button" type="submit">
+            Subscribe now <span aria-hidden="true">→</span>
+          </button>
+          <div class="otp-fields" id="otp-fields" hidden>
+            <label for="otp">Verification code</label>
+            <input
+              id="otp"
+              name="otp"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              minlength="4"
+              maxlength="8"
+              placeholder="Enter OTP"
+            />
+            <button id="verify-otp-button" type="button">
+              Verify subscription <span aria-hidden="true">→</span>
+            </button>
+          </div>
+          <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+          <small>
+            Daily charge is 2.78 BDT (including VAT, SD &amp; SC). For Robi and
+            Cirkle users only.
+          </small>
+        </form>
+      </section>
+    </main>
+
+    <footer>
+      <span>© 2026 Amar Dokan</span>
+      <span>Simple tools for better business.</span>
+    </footer>
+    <script>
+      (() => {
+        const baseUrl = "https://bdapps.flicksize.com/AmarDokan/";
+        const form = document.getElementById("subscribe-form");
+        const phoneInput = document.getElementById("phone");
+        const otpFields = document.getElementById("otp-fields");
+        const otpInput = document.getElementById("otp");
+        const sendButton = document.getElementById("send-otp-button");
+        const verifyButton = document.getElementById("verify-otp-button");
+        const status = document.getElementById("form-status");
+        let referenceNo = "";
+
+        const setStatus = (message, type) => {
+          status.textContent = message;
+          status.className = `form-status ${type || ""}`;
+        };
+
+        const setLoading = (button, loading, label) => {
+          button.disabled = loading;
+          button.dataset.label ??= button.innerHTML;
+          button.innerHTML = loading ? "Please wait..." : label;
+        };
+
+        const readMessage = (data, fallback) =>
+          data?.message || data?.statusDetail || fallback;
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const phone = phoneInput.value.trim();
+
+          if (!/^01(?:6|8)\d{8}$/.test(phone)) {
+            setStatus("Enter a valid Robi/Cirkle mobile number.", "error");
+            return;
+          }
+
+          setLoading(sendButton, true, "Subscribe now →");
+          setStatus("Sending verification code...", "");
+          try {
+            const response = await fetch(`${baseUrl}send_otp.php`, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({ user_mobile: phone }),
+            });
+            const data = await response.json();
+            referenceNo = String(data.referenceNo || "").trim();
+
+            if (data.success === true && referenceNo) {
+              otpFields.hidden = false;
+              phoneInput.readOnly = true;
+              otpInput.focus();
+              setStatus("Verification code sent. Enter the OTP.", "success");
+            } else if (
+              String(data.statusCode || "") === "E1351" ||
+              String(data.message || "").toLowerCase().includes("already registered")
+            ) {
+              setStatus("This number is already subscribed.", "success");
+            } else {
+              setStatus(readMessage(data, "Could not send OTP."), "error");
+            }
+          } catch (error) {
+            setStatus("Network error. Please try again.", "error");
+          } finally {
+            setLoading(sendButton, false, "Subscribe now →");
+          }
+        });
+
+        verifyButton.addEventListener("click", async () => {
+          const phone = phoneInput.value.trim();
+          const otp = otpInput.value.trim();
+          if (!referenceNo || otp.length < 4) {
+            setStatus("Enter the verification code.", "error");
+            return;
+          }
+
+          setLoading(verifyButton, true, "Verify subscription →");
+          setStatus("Activating your subscription...", "");
+          try {
+            const response = await fetch(`${baseUrl}verify_otp.php`, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({
+                Otp: otp,
+                otp,
+                referenceNo,
+                reference_no: referenceNo,
+                user_mobile: phone,
+              }),
+            });
+            const data = await response.json();
+            const success =
+              String(data.statusCode || "").toUpperCase() === "S1000" ||
+              data.success === true ||
+              String(data.status || "").toLowerCase() === "success" ||
+              String(data.result || "").toLowerCase() === "success";
+
+            if (success) {
+              setStatus(
+                "Subscription successful. You can now download the app.",
+                "success",
+              );
+              otpFields.hidden = true;
+              phoneInput.readOnly = false;
+            } else {
+              setStatus(readMessage(data, "OTP verification failed."), "error");
+            }
+          } catch (error) {
+            setStatus("Network error. Please try again.", "error");
+          } finally {
+            setLoading(verifyButton, false, "Verify subscription →");
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

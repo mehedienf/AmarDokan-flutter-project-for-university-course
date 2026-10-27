@@ -94,10 +94,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 88,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(44),
                   ),
-                  child: const Icon(Icons.store, size: 48, color: Colors.white),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
                 ),
                 const SizedBox(height: 24),
                 const Text(

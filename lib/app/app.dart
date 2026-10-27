@@ -71,10 +71,10 @@ class _SplashScreen extends StatelessWidget {
               width: 96,
               height: 96,
               decoration: BoxDecoration(
-                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(48),
               ),
-              child: const Icon(Icons.store, size: 56, color: Colors.white),
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
             ),
             const SizedBox(height: 24),
             const Text(
