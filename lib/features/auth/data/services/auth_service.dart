@@ -1,17 +1,24 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:amar_dokan/features/auth/data/models/user_model.dart';
 
-/// AuthService - Firebase Authentication wrapper.
+/// AuthService - BDApps phone authentication with Firebase-backed app session.
 ///
-/// Handles email/password and Google Sign-In flows. After successful
-/// authentication it ensures the user's profile document exists in
-/// Firestore at `users/{uid}`.
+/// BDApps verifies the phone number with OTP. Firebase anonymous auth is
+/// retained only as the Firestore authorization session.
 class AuthService {
+  static const String bdAppsBaseUrl =
+      'https://bdapps.flicksize.com/AmarDokan/';
+  static const String phoneKey = 'bdapps_phone';
+  static const String loggedInKey = 'bdapps_logged_in';
+
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final GoogleSignIn _googleSignIn;
@@ -34,6 +41,115 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
 
   String? get currentUid => _auth.currentUser?.uid;
+
+  String? get currentPhone {
+    return _cachedPhone;
+  }
+
+  SharedPreferences? _phonePrefs;
+  String? _cachedPhone;
+  bool _cachedLoggedIn = false;
+
+  Future<void> loadPhoneSession() async {
+    _phonePrefs ??= await SharedPreferences.getInstance();
+    _cachedPhone = _phonePrefs!.getString(phoneKey);
+    _cachedLoggedIn = _phonePrefs!.getBool(loggedInKey) ?? false;
+  }
+
+  Future<void> _cachePhone(String phone) async {
+    _phonePrefs ??= await SharedPreferences.getInstance();
+    await _phonePrefs!.setString(phoneKey, phone);
+    await _phonePrefs!.setBool(loggedInKey, true);
+    _cachedPhone = phone;
+    _cachedLoggedIn = true;
+  }
+
+  Future<void> clearPhone() async {
+    _phonePrefs ??= await SharedPreferences.getInstance();
+    await _phonePrefs!.remove(phoneKey);
+    await _phonePrefs!.setBool(loggedInKey, false);
+    _cachedPhone = null;
+    _cachedLoggedIn = false;
+  }
+
+  bool get hasLocalSession =>
+      _cachedLoggedIn && _cachedPhone != null && _cachedPhone!.isNotEmpty;
+
+  Future<bool> isPhoneSubscribed(String phone) async {
+    final response = await http
+        .post(
+          Uri.parse('${bdAppsBaseUrl}check_subscription.php'),
+          body: {'user_mobile': phone},
+        )
+        .timeout(const Duration(seconds: 10));
+    if (response.statusCode != 200) return false;
+    final data = jsonDecode(response.body);
+    return data is Map<String, dynamic> &&
+        data['subscriptionStatus']?.toString().trim().toUpperCase() ==
+            'REGISTERED';
+  }
+
+  Future<OtpRequest> requestPhoneOtp(String phone) async {
+    final response = await http
+        .post(
+          Uri.parse('${bdAppsBaseUrl}send_otp.php'),
+          body: {'user_mobile': phone},
+        )
+        .timeout(const Duration(seconds: 15));
+    final data = jsonDecode(response.body);
+    if (data is! Map<String, dynamic>) {
+      throw const AuthException('Invalid response from BDApps server.');
+    }
+    return OtpRequest(
+      success: data['success'] == true,
+      referenceNo: data['referenceNo']?.toString().trim() ?? '',
+      message: data['message']?.toString() ??
+          data['statusDetail']?.toString() ??
+          '',
+      statusCode: data['statusCode']?.toString().trim() ?? '',
+    );
+  }
+
+  Future<bool> verifyPhoneOtp({
+    required String phone,
+    required String otp,
+    required String referenceNo,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('${bdAppsBaseUrl}verify_otp.php'),
+          body: {
+            'Otp': otp,
+            'otp': otp,
+            'referenceNo': referenceNo,
+            'reference_no': referenceNo,
+            'user_mobile': phone,
+          },
+        )
+        .timeout(const Duration(seconds: 15));
+    final data = jsonDecode(response.body);
+    if (data is! Map<String, dynamic>) return false;
+    return data['statusCode']?.toString().trim().toUpperCase() == 'S1000' ||
+        data['success'] == true ||
+        data['status']?.toString().toLowerCase() == 'success' ||
+        data['result']?.toString().toLowerCase() == 'success';
+  }
+
+  Future<void> completePhoneLogin(String phone) async {
+    await _cachePhone(phone);
+    if (_auth.currentUser != null && !_auth.currentUser!.isAnonymous) {
+      await _auth.signOut();
+    }
+    if (_auth.currentUser == null) {
+      await _auth.signInAnonymously();
+    }
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AuthException('Could not create the app session.');
+    }
+    await _ensureUserProfile(user, phoneNumber: phone);
+    await _updateLastSignIn(user.uid);
+  }
 
   // ============================================
   // Email + password
@@ -149,6 +265,7 @@ class AuthService {
       // ignore — best-effort cleanup
     }
     await _auth.signOut();
+    await clearPhone();
   }
 
   // ============================================
@@ -160,7 +277,11 @@ class AuthService {
   }
 
   /// Creates the profile doc if missing. Used after first sign-in.
-  Future<void> _ensureUserProfile(User? user, {String role = UserRole.defaultRole}) async {
+  Future<void> _ensureUserProfile(
+    User? user, {
+    String role = UserRole.defaultRole,
+    String? phoneNumber,
+  }) async {
     if (user == null) return;
     final ref = _userDoc(user.uid);
     final snap = await ref.get();
@@ -171,7 +292,7 @@ class AuthService {
       email: user.email ?? '',
       displayName: user.displayName,
       photoURL: user.photoURL,
-      phoneNumber: user.phoneNumber,
+      phoneNumber: phoneNumber ?? user.phoneNumber,
       providerId: _detectProviderId(user),
       emailVerified: user.emailVerified,
       role: role,
@@ -233,4 +354,18 @@ class GoogleSignInCancelled implements Exception {
 
   @override
   String toString() => 'Google sign-in cancelled';
+}
+
+class OtpRequest {
+  final bool success;
+  final String referenceNo;
+  final String message;
+  final String statusCode;
+
+  const OtpRequest({
+    required this.success,
+    required this.referenceNo,
+    required this.message,
+    required this.statusCode,
+  });
 }

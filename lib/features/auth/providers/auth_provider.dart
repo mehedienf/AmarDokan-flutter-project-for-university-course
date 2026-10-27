@@ -6,11 +6,10 @@ import 'package:flutter/foundation.dart';
 import 'package:amar_dokan/features/auth/data/models/user_model.dart';
 import 'package:amar_dokan/features/auth/data/services/auth_service.dart';
 
-/// AuthProvider - High-level auth state for the app.
+/// AuthProvider - High-level BDApps phone auth state for the app.
 ///
-/// Listens to FirebaseAuth's authStateChanges and exposes the
-/// current user + loading/error state. UI uses this to decide
-/// whether to show LoginScreen or MainApp.
+/// Listens to the backend Firebase session only to keep the existing
+/// Firestore data layer authorized after BDApps verifies the phone.
 class AuthProvider extends ChangeNotifier {
   final AuthService _service;
 
@@ -27,6 +26,7 @@ class AuthProvider extends ChangeNotifier {
 
   bool _isLoading = false;
   bool _isInitialized = false;
+  bool _hasLocalSession = false;
   String? _errorMessage;
 
   // ============================================
@@ -40,10 +40,12 @@ class AuthProvider extends ChangeNotifier {
   bool get isInitialized => _isInitialized;
   String? get errorMessage => _errorMessage;
 
-  bool get isAuthenticated => _firebaseUser != null;
+  bool get isAuthenticated =>
+      _hasLocalSession && _service.currentPhone != null;
   String? get uid => _firebaseUser?.uid;
-  String? get email => _firebaseUser?.email;
-  bool get isEmailVerified => _firebaseUser?.emailVerified ?? false;
+  String? get email => _service.currentPhone;
+  String? get phoneNumber => _service.currentPhone;
+  bool get isEmailVerified => isAuthenticated;
   String? get displayName =>
       _firebaseUser?.displayName ?? _profile?.displayName;
   String? get photoURL => _firebaseUser?.photoURL ?? _profile?.photoURL;
@@ -59,8 +61,12 @@ class AuthProvider extends ChangeNotifier {
   // ============================================
 
   /// Subscribe to the auth state stream. Call once from main().
-  void initialize() {
+  Future<void> initialize() async {
     if (_authSub != null) return;
+    await _service.loadPhoneSession();
+    _hasLocalSession = _service.hasLocalSession;
+    _isInitialized = true;
+    notifyListeners();
     _authSub = _service.authStateChanges.listen(_onAuthStateChanged);
   }
 
@@ -116,6 +122,28 @@ class AuthProvider extends ChangeNotifier {
     return _runAuth(
       () => _service.signInWithEmail(email: email, password: password),
     );
+  }
+
+  Future<bool> signInWithBdApps({
+    required String phone,
+  }) async {
+    _setLoading(true);
+    _errorMessage = null;
+    try {
+      await _service.completePhoneLogin(phone);
+      _hasLocalSession = true;
+      _setLoading(false);
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _errorMessage = e.message;
+      _setLoading(false);
+      return false;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _setLoading(false);
+      return false;
+    }
   }
 
   Future<bool> signUpWithEmail({
@@ -213,7 +241,9 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     try {
       await _service.signOut();
+      _hasLocalSession = false;
       _setLoading(false);
+      notifyListeners();
       return true;
     } catch (e) {
       _errorMessage = e.toString();

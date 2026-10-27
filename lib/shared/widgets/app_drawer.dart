@@ -1,5 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:amar_dokan/core/constants/app_colors.dart';
 import 'package:amar_dokan/core/providers/navigation_provider.dart';
@@ -10,29 +15,8 @@ import 'package:amar_dokan/features/purchase/presentation/screens/purchase_scree
 import 'package:amar_dokan/features/accounting/presentation/screens/accounting_screen.dart';
 import 'package:amar_dokan/features/due/presentation/screens/due_screen.dart';
 import 'package:amar_dokan/features/settings/presentation/screens/settings_screen.dart';
+import 'package:amar_dokan/features/auth/data/services/auth_service.dart';
 import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
-
-/// Helper used by Sign Out tile to confirm before logging out.
-Future<bool> _confirmSignOut(BuildContext context) async {
-  final result = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('Sign out'),
-      content: const Text('Are you sure you want to sign out?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, true),
-          child: const Text('Sign out', style: TextStyle(color: Colors.red)),
-        ),
-      ],
-    ),
-  );
-  return result ?? false;
-}
 
 /// App Drawer - Side Menu
 /// এখান থেকে Drawer based features (Purchase, Accounting, ইত্যাদি) access করা যায়
@@ -237,50 +221,153 @@ class AppDrawer extends StatelessWidget {
           // Divider
           const Divider(),
 
-          // Sign out
+          // Unsubscribe
           ListTile(
-            leading: const Icon(Icons.logout, color: AppColors.error),
+            leading: const Icon(Icons.cancel_outlined, color: AppColors.error),
             title: const Text(
-              'Sign Out',
+              'Unsubscribe',
               style: TextStyle(
                 color: AppColors.error,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            onTap: () async {
-              final navigator = Navigator.of(context);
-              final rootNavigator =
-                  Navigator.of(context, rootNavigator: true);
-              final auth = context.read<AuthProvider>();
-              final messenger = ScaffoldMessenger.maybeOf(context);
-              navigator.pop(); // close drawer
-              if (!context.mounted) return;
-              final shouldSignOut = await _confirmSignOut(context);
-              if (!shouldSignOut) return;
-
-              final ok = await auth.signOut();
-
-              // Flush any pushed screens (Purchase/Accounting/Suppliers/
-              // Customers) back to the first route so the AuthGate rebuild
-              // is actually visible. Without this, stacked routes linger
-              // over the LoginScreen and back navigation lands on a stale
-              // authenticated screen.
-              if (rootNavigator.canPop()) {
-                rootNavigator.popUntil((route) => route.isFirst);
-              }
-
-              if (!ok && messenger != null) {
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('Sign out failed. Please try again.'),
-                  ),
-                );
-              }
-            },
+            onTap: () => _unsubscribe(context),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _unsubscribe(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final auth = context.read<AuthProvider>();
+    final prefs = await SharedPreferences.getInstance();
+    final phone = prefs.getString(AuthService.phoneKey) ?? '';
+
+    if (phone.isEmpty) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Phone not found!'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Unsubscribing'),
+        content: const Text('Are you sure?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+    Navigator.of(context).pop();
+    final navigator = Navigator.of(context);
+
+    var loaderOpen = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+
+    Future<void> closeLoader() async {
+      if (!loaderOpen) return;
+      loaderOpen = false;
+      if (navigator.canPop()) {
+        navigator.pop();
+      }
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${AuthService.bdAppsBaseUrl}unsubscribe.php'),
+            body: {'user_mobile': phone},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (!context.mounted) return;
+      await closeLoader();
+      if (response.statusCode != 200) {
+        throw Exception('HTTP ${response.statusCode}');
+      }
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('Unexpected response shape');
+      }
+
+      final statusCode = decoded['statusCode']?.toString() ?? '';
+      final statusDetail = decoded['statusDetail']?.toString() ?? '';
+      final subscriptionStatus =
+          decoded['subscriptionStatus']?.toString().toUpperCase() ?? '';
+      final success = decoded['success'] == true ||
+          statusCode == 'S1000' ||
+          subscriptionStatus == 'UNREGISTERED';
+
+      if (!success) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              statusDetail.isNotEmpty
+                  ? statusDetail
+                  : 'Unsubscribing failed',
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+
+      await auth.signOut();
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Unsubscribing success!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } on TimeoutException {
+      if (!context.mounted) return;
+      await closeLoader();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Timeout error!'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      await closeLoader();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Network error: $error'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   // Navigate to a bottom-nav page (closes drawer first)

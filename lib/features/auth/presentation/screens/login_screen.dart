@@ -1,12 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:amar_dokan/core/constants/app_colors.dart';
+import 'package:amar_dokan/features/auth/data/services/auth_service.dart';
 import 'package:amar_dokan/features/auth/providers/auth_provider.dart';
-import 'package:amar_dokan/features/auth/presentation/screens/signup_screen.dart';
-import 'package:amar_dokan/features/auth/presentation/screens/forgot_password_screen.dart';
 
-/// LoginScreen — Email/password + Google Sign-In
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -15,298 +15,274 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
+  bool _isLoading = false;
 
-  bool _obscurePassword = true;
+  bool _isSupportedNumber(String phone) =>
+      RegExp(r'^01(?:6|8)\d{8}$').hasMatch(phone);
+
+  Future<void> _continue() async {
+    final phone = _phoneController.text.trim();
+    if (!_isSupportedNumber(phone)) {
+      _showError('Enter a valid Robi/Cirkle mobile number.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    final service = AuthService();
+    final auth = context.read<AuthProvider>();
+    try {
+      if (await service.isPhoneSubscribed(phone)) {
+        await auth.signInWithBdApps(phone: phone);
+        return;
+      }
+
+      final request = await service.requestPhoneOtp(phone);
+      if (request.success && request.referenceNo.isNotEmpty) {
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtpScreen(
+              phone: phone,
+              referenceNo: request.referenceNo,
+            ),
+          ),
+        );
+      } else if (request.statusCode == 'E1351' ||
+          request.message.toLowerCase().contains('already registered')) {
+        await auth.signInWithBdApps(phone: phone);
+      } else {
+        _showError(
+          request.message.isNotEmpty
+              ? request.message
+              : 'OTP could not be sent.',
+        );
+      }
+    } catch (_) {
+      _showError('Network error. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
+  }
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _phoneController.dispose();
     super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final auth = context.read<AuthProvider>();
-    final ok = await auth.signInWithEmail(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
-
-    if (!mounted) return;
-    if (ok) {
-      // Auth state change will redirect to MainApp via app.dart gate.
-    }
-  }
-
-  Future<void> _signInWithGoogle() async {
-    final auth = context.read<AuthProvider>();
-    final ok = await auth.signInWithGoogle();
-
-    if (!mounted) return;
-    if (!ok && auth.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(auth.errorMessage!),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Logo / Branding
-                  Container(
-                    width: 88,
-                    height: 88,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(44),
-                    ),
-                    child: const Icon(
-                      Icons.store,
-                      size: 48,
-                      color: Colors.white,
-                    ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 88,
+                  height: 88,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(44),
                   ),
-                  const SizedBox(height: 24),
-
-                  // Title
-                  const Text(
-                    'Welcome Back',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
+                  child: const Icon(Icons.store, size: 48, color: Colors.white),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Welcome to Amar Dokan',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Sign in to continue to Amar Dokan',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Sign in with your mobile number',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 32),
+                TextField(
+                  controller: _phoneController,
+                  enabled: !_isLoading,
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _continue(),
+                  decoration: const InputDecoration(
+                    labelText: 'Mobile number',
+                    hintText: '018********',
+                    prefixIcon: Icon(Icons.phone_android_outlined),
                   ),
-                  const SizedBox(height: 32),
-
-                  // Email field
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: (value) {
-                      final text = value?.trim() ?? '';
-                      if (text.isEmpty) return 'Email is required';
-                      if (!text.contains('@')) {
-                        return 'Enter a valid email';
-                      }
-                      return null;
-                    },
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _continue,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  const SizedBox(height: 16),
-
-                  // Password field
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _submit(),
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Password is required';
-                      }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Forgot password link
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ForgotPasswordScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text('Forgot password?'),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Error message
-                  if (auth.errorMessage != null)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppColors.error.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.error_outline,
-                            color: AppColors.error,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              auth.errorMessage!,
-                              style: const TextStyle(
-                                color: AppColors.error,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                              size: 18,
-                              color: AppColors.error,
-                            ),
-                            onPressed: auth.clearError,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // Login button
-                  ElevatedButton(
-                    onPressed: auth.isLoading ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: auth.isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          )
-                        : const Text('Sign In', style: TextStyle(fontSize: 16)),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Divider with "or"
-                  Row(
-                    children: const [
-                      Expanded(child: Divider()),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          'OR',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Google button
-                  OutlinedButton.icon(
-                    onPressed: auth.isLoading ? null : _signInWithGoogle,
-                    icon: const Icon(Icons.g_mobiledata, size: 28),
-                    label: const Text('Continue with Google'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: const BorderSide(color: AppColors.divider),
-                      foregroundColor: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Sign up link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "Don't have an account? ",
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SignupScreen(),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                        child: const Text('Sign up'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Continue'),
+                ),
+              ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class OtpScreen extends StatefulWidget {
+  final String phone;
+  final String referenceNo;
+
+  const OtpScreen({
+    super.key,
+    required this.phone,
+    required this.referenceNo,
+  });
+
+  @override
+  State<OtpScreen> createState() => _OtpScreenState();
+}
+
+class _OtpScreenState extends State<OtpScreen> {
+  final _otpController = TextEditingController();
+  Timer? _timer;
+  int _remainingSeconds = 240;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_remainingSeconds == 0) {
+        _timer?.cancel();
+      } else {
+        setState(() => _remainingSeconds--);
+      }
+    });
+  }
+
+  Future<void> _verify() async {
+    final otp = _otpController.text.trim();
+    if (otp.length < 4) {
+      _showError('Enter the OTP sent to your phone.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final service = AuthService();
+      final verified = await service.verifyPhoneOtp(
+        phone: widget.phone,
+        otp: otp,
+        referenceNo: widget.referenceNo,
+      );
+      if (!verified) {
+        _showError('Invalid OTP. Please try again.');
+        return;
+      }
+
+      if (!mounted) return;
+      final signedIn = await context.read<AuthProvider>().signInWithBdApps(
+        phone: widget.phone,
+      );
+      if (signedIn && mounted) {
+        Navigator.pop(context);
+      }
+    } catch (_) {
+      _showError('Network error. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final minutes = (_remainingSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_remainingSeconds % 60).toString().padLeft(2, '0');
+    return Scaffold(
+      appBar: AppBar(title: const Text('Verify mobile number')),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 32),
+              const Icon(Icons.sms_outlined, size: 64, color: AppColors.primary),
+              const SizedBox(height: 20),
+              Text(
+                'OTP sent to ${widget.phone}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _otpController,
+                enabled: !_isLoading,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(labelText: 'OTP'),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '$minutes:$seconds',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _verify,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Verify and continue'),
+              ),
+            ],
           ),
         ),
       ),
