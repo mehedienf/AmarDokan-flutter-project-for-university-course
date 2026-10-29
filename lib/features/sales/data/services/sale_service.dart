@@ -1,14 +1,13 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 
 import 'package:amar_dokan/features/inventory/data/services/inventory_service.dart';
 import 'package:amar_dokan/features/sales/data/models/sale_model.dart';
 
-/// SaleService - Firestore এর সাথে sales data manage করে
+/// SaleService - storage এর সাথে sales data manage করে
 ///
-/// Firestore path: users/{userId}/sales/{saleId}
+/// storage path: users/{userId}/sales/{saleId}
 ///
 /// Sale side-effects:
 /// - `addSale` automatically decrements product stock for every item when the
@@ -16,16 +15,16 @@ import 'package:amar_dokan/features/sales/data/models/sale_model.dart';
 /// - `deleteSale` automatically restores stock for completed sales so that
 ///   returns / corrections don't leave the inventory drifted.
 class SaleService {
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  final LocalDb _firestore;
+  final LocalAuth _auth;
   final InventoryService _inventoryService;
 
   SaleService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
+    LocalDb? firestore,
+    LocalAuth? auth,
     InventoryService? inventoryService,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance,
+  })  : _firestore = firestore ?? LocalDb.instance,
+        _auth = auth ?? LocalAuth.instance,
         _inventoryService = inventoryService ?? InventoryService();
 
   CollectionReference? get _salesCollection {
@@ -43,7 +42,7 @@ class SaleService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) =>
-                SaleModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+                SaleModel.fromFirestore(doc.data(), doc.id))
             .toList());
   }
 
@@ -57,7 +56,7 @@ class SaleService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) =>
-                SaleModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+                SaleModel.fromFirestore(doc.data(), doc.id))
             .toList());
   }
 
@@ -77,7 +76,7 @@ class SaleService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) =>
-                SaleModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+                SaleModel.fromFirestore(doc.data(), doc.id))
             .toList());
   }
 
@@ -143,7 +142,7 @@ class SaleService {
       throw Exception('Sale not found: $saleId');
     }
     final sale = SaleModel.fromFirestore(
-      doc.data() as Map<String, dynamic>,
+      doc.data(),
       doc.id,
     );
 
@@ -176,7 +175,7 @@ class SaleService {
     SaleModel? existing;
     if (doc.exists) {
       existing = SaleModel.fromFirestore(
-        doc.data() as Map<String, dynamic>,
+        doc.data(),
         doc.id,
       );
     }
@@ -205,7 +204,7 @@ class SaleService {
     final doc = await collection.doc(saleId).get();
     if (!doc.exists) return null;
     return SaleModel.fromFirestore(
-      doc.data() as Map<String, dynamic>,
+      doc.data(),
       doc.id,
     );
   }
@@ -229,7 +228,7 @@ class SaleService {
 
     double total = 0.0;
     for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
+      final data = doc.data();
       total += (data['total'] ?? 0).toDouble();
     }
     return total;
@@ -250,7 +249,7 @@ class SaleService {
 
     double total = 0.0;
     for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
+      final data = doc.data();
       total += (data['totalProfit'] ?? 0).toDouble();
     }
     return total;

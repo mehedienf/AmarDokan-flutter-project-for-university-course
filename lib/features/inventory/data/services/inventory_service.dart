@@ -1,11 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 
 import 'package:amar_dokan/features/inventory/data/models/product_model.dart';
 
-/// Inventory Service - Firestore এর সাথে communicate করে
+/// Inventory Service - storage এর সাথে communicate করে
 ///
-/// এই class শুধু Firestore operations handle করে:
+/// এই class শুধু storage operations handle করে:
 /// - Create (Add new product)
 /// - Read (Get products)
 /// - Update (Edit product)
@@ -14,8 +13,8 @@ import 'package:amar_dokan/features/inventory/data/models/product_model.dart';
 /// এটা কোনো UI state manage করে না — সেটা Provider এর কাজ
 class InventoryService {
   // Firebase instances
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final LocalDb _firestore = LocalDb.instance;
+  final LocalAuth _auth = LocalAuth.instance;
 
   /// Current user এর ID return করে
   /// যদি user login না থাকে তাহলে exception throw করে
@@ -27,7 +26,7 @@ class InventoryService {
     return user.uid;
   }
 
-  /// Firestore collection reference
+  /// storage collection reference
   /// Path: users/{userId}/products
   CollectionReference get _productsRef => _firestore
       .collection('users')
@@ -51,14 +50,14 @@ class InventoryService {
   // CREATE - নতুন product add করা
   // ============================================
 
-  /// Firestore এ নতুন product save করে
+  /// storage এ নতুন product save করে
   /// Returns: save হওয়া product এর ID
   Future<String> addProduct(ProductModel product) async {
     try {
       // Firestore automatically ID generate করবে
       final docRef = await _productsRef.add(product.toFirestore());
       return docRef.id;
-    } on FirebaseException catch (e) {
+    } on LocalDbException catch (e) {
       throw Exception('Failed to add product: ${e.message}');
     } catch (e) {
       throw Exception('Unexpected error: $e');
@@ -79,11 +78,11 @@ class InventoryService {
 
       return querySnapshot.docs.map((doc) {
         return ProductModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
+          doc.data(),
           doc.id,
         );
       }).toList();
-    } on FirebaseException catch (e) {
+    } on LocalDbException catch (e) {
       throw Exception('Failed to load products: ${e.message}');
     } catch (e) {
       throw Exception('Unexpected error: $e');
@@ -98,10 +97,10 @@ class InventoryService {
       if (!docSnapshot.exists) return null;
 
       return ProductModel.fromFirestore(
-        docSnapshot.data() as Map<String, dynamic>,
+        docSnapshot.data(),
         docSnapshot.id,
       );
-    } on FirebaseException catch (e) {
+    } on LocalDbException catch (e) {
       throw Exception('Failed to load product: ${e.message}');
     } catch (e) {
       throw Exception('Unexpected error: $e');
@@ -117,7 +116,7 @@ class InventoryService {
         .map((snapshot) {
       return snapshot.docs.map((doc) {
         return ProductModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
+          doc.data(),
           doc.id,
         );
       }).toList();
@@ -133,7 +132,7 @@ class InventoryService {
         .map((snapshot) {
       return snapshot.docs.map((doc) {
         return ProductModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
+          doc.data(),
           doc.id,
         );
       }).toList();
@@ -148,7 +147,7 @@ class InventoryService {
         .map((snapshot) {
       return snapshot.docs
           .map((doc) => ProductModel.fromFirestore(
-                doc.data() as Map<String, dynamic>,
+                doc.data(),
                 doc.id,
               ))
           .where((product) => product.isLowStock)
@@ -178,7 +177,7 @@ class InventoryService {
         'imageUrl': product.imageUrl,
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
-    } on FirebaseException catch (e) {
+    } on LocalDbException catch (e) {
       throw Exception('Failed to update product: ${e.message}');
     } catch (e) {
       throw Exception('Unexpected error: $e');
@@ -192,7 +191,7 @@ class InventoryService {
         'stock': newStock,
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
-    } on FirebaseException catch (e) {
+    } on LocalDbException catch (e) {
       throw Exception('Failed to update stock: ${e.message}');
     } catch (e) {
       throw Exception('Unexpected error: $e');
@@ -203,11 +202,11 @@ class InventoryService {
   // DELETE - Product মুছে ফেলা
   // ============================================
 
-  /// Product কে Firestore থেকে delete করে
+  /// Product কে storage থেকে delete করে
   Future<void> deleteProduct(String productId) async {
     try {
       await _productsRef.doc(productId).delete();
-    } on FirebaseException catch (e) {
+    } on LocalDbException catch (e) {
       throw Exception('Failed to delete product: ${e.message}');
     } catch (e) {
       throw Exception('Unexpected error: $e');
@@ -219,7 +218,7 @@ class InventoryService {
   // ============================================
 
   /// Product name দিয়ে search করে
-  /// Note: Firestore এ full-text search built-in নেই,
+  /// Note: storage এ full-text search built-in নেই,
   /// তাই আমরা simple approach ব্যবহার করছি
   Future<List<ProductModel>> searchProducts(String query) async {
     try {

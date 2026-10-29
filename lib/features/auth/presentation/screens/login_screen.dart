@@ -33,7 +33,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.read<AuthProvider>();
     try {
       if (await service.isPhoneSubscribed(phone)) {
-        await auth.signInWithBdApps(phone: phone);
+        if (!await auth.signInWithBdApps(phone: phone)) {
+          _showError(auth.errorMessage ?? 'Login failed. Try again.');
+        }
         return;
       }
 
@@ -51,7 +53,9 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else if (request.statusCode == 'E1351' ||
           request.message.toLowerCase().contains('already registered')) {
-        await auth.signInWithBdApps(phone: phone);
+        if (!await auth.signInWithBdApps(phone: phone)) {
+          _showError(auth.errorMessage ?? 'Login failed. Try again.');
+        }
       } else {
         _showError(
           request.message.isNotEmpty
@@ -59,8 +63,8 @@ class _LoginScreenState extends State<LoginScreen> {
               : 'OTP could not be sent.',
         );
       }
-    } catch (_) {
-      _showError('Network error. Please try again.');
+    } catch (e) {
+      _showError('Request failed: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -133,6 +137,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _continue(),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Mobile number',
                     hintText: '018********',
@@ -215,15 +224,19 @@ class _OtpScreenState extends State<OtpScreen> {
         return;
       }
 
+      // OTP verified: log in directly. Subscription may still be
+      // INITIAL CHARGING PENDING, which is fine.
       if (!mounted) return;
-      final signedIn = await context.read<AuthProvider>().signInWithBdApps(
-        phone: widget.phone,
-      );
-      if (signedIn && mounted) {
-        Navigator.pop(context);
+      final auth = context.read<AuthProvider>();
+      final signedIn = await auth.signInWithBdApps(phone: widget.phone);
+      if (!mounted) return;
+      if (signedIn) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      } else {
+        _showError(auth.errorMessage ?? 'Login failed. Try again.');
       }
-    } catch (_) {
-      _showError('Network error. Please try again.');
+    } catch (e) {
+      _showError('Verify failed: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -268,7 +281,16 @@ class _OtpScreenState extends State<OtpScreen> {
                 enabled: !_isLoading,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
-                decoration: const InputDecoration(labelText: 'OTP'),
+                style: const TextStyle(
+                  color: Color(0xFF000000),
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 8,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'OTP',
+                  hintStyle: TextStyle(color: Colors.black38),
+                ),
               ),
               const SizedBox(height: 12),
               Text(

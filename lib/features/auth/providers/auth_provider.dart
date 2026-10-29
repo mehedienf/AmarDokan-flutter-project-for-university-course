@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:amar_dokan/features/auth/data/models/user_model.dart';
@@ -8,8 +7,7 @@ import 'package:amar_dokan/features/auth/data/services/auth_service.dart';
 
 /// AuthProvider - High-level BDApps phone auth state for the app.
 ///
-/// Listens to the backend Firebase session only to keep the existing
-/// Firestore data layer authorized after BDApps verifies the phone.
+/// The session and all app data live on the device only.
 class AuthProvider extends ChangeNotifier {
   final AuthService _service;
 
@@ -19,9 +17,7 @@ class AuthProvider extends ChangeNotifier {
   // State
   // ============================================
 
-  User? _firebaseUser;
   UserModel? _profile;
-  StreamSubscription<User?>? _authSub;
   StreamSubscription<UserModel?>? _profileSub;
 
   bool _isLoading = false;
@@ -33,7 +29,6 @@ class AuthProvider extends ChangeNotifier {
   // Getters
   // ============================================
 
-  User? get firebaseUser => _firebaseUser;
   UserModel? get profile => _profile;
 
   bool get isLoading => _isLoading;
@@ -42,15 +37,13 @@ class AuthProvider extends ChangeNotifier {
 
   bool get isAuthenticated =>
       _hasLocalSession && _service.currentPhone != null;
-  String? get uid => _firebaseUser?.uid;
+  String? get uid => _service.currentUid;
   String? get email => _service.currentPhone;
   String? get phoneNumber => _service.currentPhone;
-  bool get isEmailVerified => isAuthenticated;
-  String? get displayName =>
-      _firebaseUser?.displayName ?? _profile?.displayName;
-  String? get photoURL => _firebaseUser?.photoURL ?? _profile?.photoURL;
+  String? get displayName => _profile?.displayName;
+  String? get photoURL => _profile?.photoURL;
 
-  /// Role from the Firestore profile. Defaults to staff if the profile
+  /// Role from the local profile. Defaults to staff if the profile
   /// hasn't loaded yet (safe for nav gating — staff can only see sales).
   String get role => _profile?.role ?? UserRole.defaultRole;
   bool get isAdmin => UserRole.isAdmin(role);
@@ -60,47 +53,30 @@ class AuthProvider extends ChangeNotifier {
   // Lifecycle
   // ============================================
 
-  /// Subscribe to the auth state stream. Call once from main().
+  /// Restore the saved session. Call once from main().
   Future<void> initialize() async {
-    if (_authSub != null) return;
+    if (_isInitialized) return;
     await _service.loadPhoneSession();
     _hasLocalSession = _service.hasLocalSession;
+    _watchProfile();
     _isInitialized = true;
     notifyListeners();
-    _authSub = _service.authStateChanges.listen(_onAuthStateChanged);
   }
 
-  void _onAuthStateChanged(User? user) {
-    _firebaseUser = user;
-    _errorMessage = null;
-    _isInitialized = true;
-
-    // Reset profile subscription when user changes.
+  void _watchProfile() {
     _profileSub?.cancel();
     _profileSub = null;
     _profile = null;
-
-    if (user != null) {
-      _profileSub = _service
-          .watchUserProfile(user.uid)
-          .listen(
-            (p) {
-              _profile = p;
-              notifyListeners();
-            },
-            onError: (_) {
-              // Firestore profile may be missing for brand-new accounts;
-              // not fatal — ignore.
-            },
-          );
-    } else {
+    final id = _service.currentUid;
+    if (id == null) return;
+    _profileSub = _service.watchUserProfile(id).listen((p) {
+      _profile = p;
       notifyListeners();
-    }
+    });
   }
 
   @override
   void dispose() {
-    _authSub?.cancel();
     _profileSub?.cancel();
     super.dispose();
   }
@@ -115,15 +91,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> signInWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    return _runAuth(
-      () => _service.signInWithEmail(email: email, password: password),
-    );
-  }
-
   Future<bool> signInWithBdApps({
     required String phone,
   }) async {
@@ -132,101 +99,12 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _service.completePhoneLogin(phone);
       _hasLocalSession = true;
+      _watchProfile();
       _setLoading(false);
       notifyListeners();
       return true;
     } on AuthException catch (e) {
       _errorMessage = e.message;
-      _setLoading(false);
-      return false;
-    } catch (e) {
-      _errorMessage = e.toString();
-      _setLoading(false);
-      return false;
-    }
-  }
-
-  Future<bool> signUpWithEmail({
-    required String email,
-    required String password,
-    String? displayName,
-    String role = UserRole.defaultRole,
-  }) async {
-    return _runAuth(
-      () => _service.signUpWithEmail(
-        email: email,
-        password: password,
-        displayName: displayName,
-        role: role,
-      ),
-    );
-  }
-
-  Future<bool> signInWithGoogle() async {
-    return _runAuth(() => _service.signInWithGoogle());
-  }
-
-  Future<bool> sendPasswordReset(String email) async {
-    _setLoading(true);
-    _errorMessage = null;
-    try {
-      await _service.sendPasswordReset(email);
-      _setLoading(false);
-      return true;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _mapFirebaseError(e);
-      _setLoading(false);
-      return false;
-    } catch (e) {
-      _errorMessage = e.toString();
-      _setLoading(false);
-      return false;
-    }
-  }
-
-  /// Sends a verification email to the currently signed-in user.
-  /// Returns true on success; surfaces a friendly error otherwise.
-  Future<bool> sendVerificationEmail() async {
-    _setLoading(true);
-    _errorMessage = null;
-    try {
-      await _service.sendVerificationEmail();
-      _setLoading(false);
-      return true;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _mapFirebaseError(e);
-      _setLoading(false);
-      return false;
-    } on AuthException catch (e) {
-      _errorMessage = e.message;
-      _setLoading(false);
-      return false;
-    } catch (e) {
-      _errorMessage = e.toString();
-      _setLoading(false);
-      return false;
-    }
-  }
-
-  /// Forces a reload of the Firebase user and notifies listeners so
-  /// [isEmailVerified] reflects the latest server-side state. Call this
-  /// after the user taps the verification link in their inbox and
-  /// returns to the app.
-  Future<bool> reloadAndCheckVerification() async {
-    _setLoading(true);
-    _errorMessage = null;
-    try {
-      final updated = await _service.reloadUser();
-      // Manually refresh local state because the auth-state stream does
-      // not always emit for self-initiated reload() calls.
-      _firebaseUser = updated ?? _firebaseUser;
-      _setLoading(false);
-      // notifyListeners is already called from _setLoading; second call
-      // ensures listeners that compare the user reference get a tick.
-      notifyListeners();
-      return _firebaseUser?.emailVerified ?? false;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _mapFirebaseError(e);
       _setLoading(false);
       return false;
     } catch (e) {
@@ -242,35 +120,12 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _service.signOut();
       _hasLocalSession = false;
+      _profileSub?.cancel();
+      _profileSub = null;
+      _profile = null;
       _setLoading(false);
       notifyListeners();
       return true;
-    } catch (e) {
-      _errorMessage = e.toString();
-      _setLoading(false);
-      return false;
-    }
-  }
-
-  // ============================================
-  // Helpers
-  // ============================================
-
-  Future<bool> _runAuth(Future<UserCredential> Function() action) async {
-    _setLoading(true);
-    _errorMessage = null;
-    try {
-      await action();
-      _setLoading(false);
-      return true;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _mapFirebaseError(e);
-      _setLoading(false);
-      return false;
-    } on GoogleSignInCancelled {
-      // User cancelled — don't surface as error.
-      _setLoading(false);
-      return false;
     } catch (e) {
       _errorMessage = e.toString();
       _setLoading(false);
@@ -282,35 +137,5 @@ class AuthProvider extends ChangeNotifier {
     if (_isLoading == value) return;
     _isLoading = value;
     notifyListeners();
-  }
-
-  String _mapFirebaseError(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'invalid-email':
-        return 'Invalid email address.';
-      case 'user-disabled':
-        return 'This account has been disabled.';
-      case 'user-not-found':
-        return 'No account found with this email.';
-      case 'wrong-password':
-        return 'Incorrect password.';
-      case 'invalid-credential':
-        return 'Invalid email or password.';
-      case 'email-already-in-use':
-        return 'An account already exists with this email.';
-      case 'weak-password':
-        return 'Password is too weak (use at least 6 characters).';
-      case 'operation-not-allowed':
-        return 'Email/password sign-in is not enabled. '
-            'Enable it in Firebase Console → Authentication.';
-      case 'too-many-requests':
-        return 'Too many attempts. Please try again later.';
-      case 'network-request-failed':
-        return 'Network error. Check your connection.';
-      case 'account-exists-with-different-credential':
-        return 'An account already exists with a different sign-in method.';
-      default:
-        return e.message ?? 'Authentication failed (${e.code}).';
-    }
   }
 }

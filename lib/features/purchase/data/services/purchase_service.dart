@@ -1,30 +1,29 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 
 import 'package:amar_dokan/features/inventory/data/services/inventory_service.dart';
 import 'package:amar_dokan/features/purchase/data/models/purchase_model.dart';
 
-/// PurchaseService - Firestore এর সাথে purchases data manage করে।
+/// PurchaseService - storage এর সাথে purchases data manage করে।
 ///
-/// Firestore path: users/{userId}/purchases/{purchaseId}
+/// storage path: users/{userId}/purchases/{purchaseId}
 ///
 /// Purchase side-effects:
 /// - `addPurchase` automatically increments product stock for every item
 ///   and updates the product's `purchasePrice` to the latest unit cost.
 /// - `deletePurchase` automatically decrements product stock for every item.
 class PurchaseService {
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  final LocalDb _firestore;
+  final LocalAuth _auth;
   final InventoryService _inventoryService;
 
   PurchaseService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
+    LocalDb? firestore,
+    LocalAuth? auth,
     InventoryService? inventoryService,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance,
+  })  : _firestore = firestore ?? LocalDb.instance,
+        _auth = auth ?? LocalAuth.instance,
         _inventoryService = inventoryService ?? InventoryService();
 
   CollectionReference? get _purchasesCollection {
@@ -46,7 +45,7 @@ class PurchaseService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => PurchaseModel.fromFirestore(
-                doc.data() as Map<String, dynamic>, doc.id))
+                doc.data(), doc.id))
             .toList());
   }
 
@@ -60,7 +59,7 @@ class PurchaseService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => PurchaseModel.fromFirestore(
-                doc.data() as Map<String, dynamic>, doc.id))
+                doc.data(), doc.id))
             .toList());
   }
 
@@ -80,7 +79,7 @@ class PurchaseService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => PurchaseModel.fromFirestore(
-                doc.data() as Map<String, dynamic>, doc.id))
+                doc.data(), doc.id))
             .toList());
   }
 
@@ -107,7 +106,7 @@ class PurchaseService {
           final snapshot = await txn.get(productRef);
           if (!snapshot.exists) return;
 
-          final data = snapshot.data() as Map<String, dynamic>;
+          final data = snapshot.data();
           final newSellingPrice = item.unitSellingPrice > 0
               ? item.unitSellingPrice
               : (data['sellingPrice'] ?? 0).toDouble();
@@ -161,7 +160,7 @@ class PurchaseService {
       throw Exception('Purchase not found: $purchaseId');
     }
     final purchase = PurchaseModel.fromFirestore(
-      doc.data() as Map<String, dynamic>,
+      doc.data(),
       doc.id,
     );
 
@@ -195,7 +194,7 @@ class PurchaseService {
     PurchaseModel? existing;
     if (doc.exists) {
       existing = PurchaseModel.fromFirestore(
-        doc.data() as Map<String, dynamic>,
+        doc.data(),
         doc.id,
       );
     }
@@ -225,7 +224,7 @@ class PurchaseService {
     final doc = await collection.doc(purchaseId).get();
     if (!doc.exists) return null;
     return PurchaseModel.fromFirestore(
-      doc.data() as Map<String, dynamic>,
+      doc.data(),
       doc.id,
     );
   }
@@ -256,7 +255,7 @@ class PurchaseService {
     final snapshot = await baseQuery.get();
     double total = 0.0;
     for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
+      final data = doc.data();
       total += (data['total'] ?? 0).toDouble();
     }
     return total;
@@ -270,7 +269,7 @@ class PurchaseService {
     final snapshot = await collection.get();
     double total = 0.0;
     for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
+      final data = doc.data();
       final t = (data['total'] ?? 0).toDouble();
       final p = (data['paidAmount'] ?? 0).toDouble();
       final due = (t - p).clamp(0, double.infinity).toDouble();

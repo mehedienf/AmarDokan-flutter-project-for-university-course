@@ -1,22 +1,21 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 
 import 'package:amar_dokan/features/accounting/data/models/transaction_model.dart';
 
-/// TransactionService - Firestore এর সাথে transactions data manage করে।
+/// TransactionService - storage এর সাথে transactions data manage করে।
 ///
-/// Firestore path: users/{userId}/transactions/{transactionId}
+/// storage path: users/{userId}/transactions/{transactionId}
 class TransactionService {
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  final LocalDb _firestore;
+  final LocalAuth _auth;
 
   TransactionService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+    LocalDb? firestore,
+    LocalAuth? auth,
+  })  : _firestore = firestore ?? LocalDb.instance,
+        _auth = auth ?? LocalAuth.instance;
 
   CollectionReference? get _transactionsCollection {
     final user = _auth.currentUser;
@@ -40,7 +39,7 @@ class TransactionService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => TransactionModel.fromFirestore(
-                doc.data() as Map<String, dynamic>, doc.id))
+                doc.data(), doc.id))
             .toList());
   }
 
@@ -56,7 +55,7 @@ class TransactionService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => TransactionModel.fromFirestore(
-                doc.data() as Map<String, dynamic>, doc.id))
+                doc.data(), doc.id))
             .toList());
   }
 
@@ -76,7 +75,7 @@ class TransactionService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => TransactionModel.fromFirestore(
-                doc.data() as Map<String, dynamic>, doc.id))
+                doc.data(), doc.id))
             .toList());
   }
 
@@ -123,7 +122,7 @@ class TransactionService {
     final doc = await collection.doc(transactionId).get();
     if (!doc.exists) return null;
     return TransactionModel.fromFirestore(
-      doc.data() as Map<String, dynamic>,
+      doc.data(),
       doc.id,
     );
   }
@@ -150,7 +149,7 @@ class TransactionService {
 
     double total = 0.0;
     for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
+      final data = doc.data();
       total += (data['amount'] ?? 0).toDouble();
     }
     return total;
@@ -174,7 +173,7 @@ class TransactionService {
 
     double total = 0.0;
     for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
+      final data = doc.data();
       total += (data['amount'] ?? 0).toDouble();
     }
     return total;
@@ -209,7 +208,7 @@ class TransactionService {
 
     double total = 0.0;
     for (final doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
+      final data = doc.data();
       total += (data['amount'] ?? 0).toDouble();
     }
     return total;

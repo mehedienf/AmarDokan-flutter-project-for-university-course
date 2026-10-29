@@ -1,10 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 import 'package:amar_dokan/features/inventory/data/models/product_category.dart';
 
-/// Product Model - Firestore এর সাথে কাজ করার জন্য design করা
+/// Product Model - storage এর সাথে কাজ করার জন্য design করা
 ///
 /// এই model এর প্রতিটি field এর purpose:
-/// - id: Firestore document ID
+/// - id: storage document ID
 /// - name: Product এর নাম
 /// - sku: Stock Keeping Unit (unique identifier, barcode এর মতো)
 /// - category: Product এর category (enum)
@@ -89,8 +89,8 @@ class ProductModel {
   // Firestore Serialization
   // ============================================
 
-  /// Firestore document থেকে ProductModel বানাও
-  /// Firestore এ data `Map<String, dynamic>` হিসেবে থাকে
+  /// storage document থেকে ProductModel বানাও
+  /// storage এ data `Map<String, dynamic>` হিসেবে থাকে
   factory ProductModel.fromFirestore(Map<String, dynamic> data, String documentId) {
     return ProductModel(
       id: documentId,
@@ -115,7 +115,7 @@ class ProductModel {
     );
   }
 
-  /// ProductModel কে Firestore document এ save করার জন্য Map এ convert
+  /// ProductModel কে storage document এ save করার জন্য Map এ convert
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,

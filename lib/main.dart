@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:firebase_core/firebase_core.dart';
-import 'package:amar_dokan/firebase_options.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 
 import 'package:amar_dokan/features/inventory/providers/inventory_provider.dart';
 import 'package:amar_dokan/features/customers/providers/customer_provider.dart';
@@ -22,8 +21,8 @@ void main() async {
   // Flutter এ async কাজ করার আগে WidgetsFlutterBinding ensure করতে হয়
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase initialize 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // On-device database load করা হচ্ছে (সব data local storage এ থাকে)
+  await LocalDb.instance.init();
 
   // ThemeProvider initialize করে SharedPreferences থেকে saved theme mode
   // load করা হচ্ছে, যাতে প্রথম frame থেকেই user এর পছন্দ apply হয়।

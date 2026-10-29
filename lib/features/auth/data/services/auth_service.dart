@@ -1,59 +1,46 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:amar_dokan/core/local/local_db.dart';
 import 'package:amar_dokan/features/auth/data/models/user_model.dart';
 
-/// AuthService - BDApps phone authentication with Firebase-backed app session.
+/// AuthService - BDApps phone authentication with an on-device session.
 ///
-/// BDApps verifies the phone number with OTP. Firebase anonymous auth is
-/// retained only as the Firestore authorization session.
+/// BDApps verifies the phone number with OTP. All app data is stored locally
+/// on the device, keyed by the verified phone number.
 class AuthService {
   static const String bdAppsBaseUrl =
       'https://bdapps.flicksize.com/AmarDokan/';
   static const String phoneKey = 'bdapps_phone';
   static const String loggedInKey = 'bdapps_logged_in';
 
-  final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
-  final GoogleSignIn _googleSignIn;
+  final LocalDb _db;
 
-  AuthService({
-    FirebaseAuth? auth,
-    FirebaseFirestore? firestore,
-    GoogleSignIn? googleSignIn,
-  }) : _auth = auth ?? FirebaseAuth.instance,
-       _firestore = firestore ?? FirebaseFirestore.instance,
-       _googleSignIn =
-           googleSignIn ?? GoogleSignIn(scopes: const ['email', 'profile']);
+  AuthService({LocalDb? db}) : _db = db ?? LocalDb.instance;
 
-  // ============================================
-  // Stream of Firebase Auth state
-  // ============================================
+  String? get currentUid => LocalAuth.instance.currentUser?.uid;
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  User? get currentUser => _auth.currentUser;
-
-  String? get currentUid => _auth.currentUser?.uid;
-
-  String? get currentPhone {
-    return _cachedPhone;
-  }
+  String? get currentPhone => _cachedPhone;
 
   SharedPreferences? _phonePrefs;
   String? _cachedPhone;
   bool _cachedLoggedIn = false;
 
+  /// Local user id derived from the phone number.
+  static String uidForPhone(String phone) => 'phone_$phone';
+
   Future<void> loadPhoneSession() async {
     _phonePrefs ??= await SharedPreferences.getInstance();
     _cachedPhone = _phonePrefs!.getString(phoneKey);
     _cachedLoggedIn = _phonePrefs!.getBool(loggedInKey) ?? false;
+    if (hasLocalSession) {
+      final uid = uidForPhone(_cachedPhone!);
+      LocalAuth.instance.setUid(uid);
+      await _ensureUserProfile(uid, _cachedPhone!);
+    }
   }
 
   Future<void> _cachePhone(String phone) async {
@@ -75,6 +62,7 @@ class AuthService {
   bool get hasLocalSession =>
       _cachedLoggedIn && _cachedPhone != null && _cachedPhone!.isNotEmpty;
 
+  /// True when BDApps reports REGISTERED or INITIAL CHARGING PENDING.
   Future<bool> isPhoneSubscribed(String phone) async {
     final response = await http
         .post(
@@ -84,9 +72,26 @@ class AuthService {
         .timeout(const Duration(seconds: 10));
     if (response.statusCode != 200) return false;
     final data = jsonDecode(response.body);
-    return data is Map<String, dynamic> &&
-        data['subscriptionStatus']?.toString().trim().toUpperCase() ==
-            'REGISTERED';
+    if (data is! Map<String, dynamic>) return false;
+    final status =
+        data['subscriptionStatus']?.toString().trim().toUpperCase() ?? '';
+    // INITIAL CHARGING PENDING = subscription exists, billing still ticking.
+    return status == 'REGISTERED' || status == 'INITIAL CHARGING PENDING';
+  }
+
+  /// Polls [isPhoneSubscribed] until REGISTERED / INITIAL CHARGING PENDING.
+  Future<bool> waitForSubscription(
+    String phone, {
+    int maxAttempts = 5,
+    Duration delay = const Duration(seconds: 1),
+  }) async {
+    for (var i = 0; i < maxAttempts; i++) {
+      await Future.delayed(delay);
+      try {
+        if (await isPhoneSubscribed(phone)) return true;
+      } catch (_) {}
+    }
+    return false;
   }
 
   Future<OtpRequest> requestPhoneOtp(String phone) async {
@@ -129,120 +134,38 @@ class AuthService {
         .timeout(const Duration(seconds: 15));
     final data = jsonDecode(response.body);
     if (data is! Map<String, dynamic>) return false;
-    return data['statusCode']?.toString().trim().toUpperCase() == 'S1000' ||
+    final statusCode = (data['statusCode'] ??
+            data['StatusCode'] ??
+            data['status_code'] ??
+            '')
+        .toString()
+        .trim()
+        .toUpperCase();
+    final subStatus = (data['subscriptionStatus'] ??
+            data['SubscriptionStatus'] ??
+            data['subscription_status'] ??
+            '')
+        .toString()
+        .trim()
+        .toUpperCase();
+    final verified = statusCode == 'S1000' ||
+        statusCode == 'E1351' ||
+        subStatus == 'REGISTERED' ||
+        subStatus == 'INITIAL CHARGING PENDING' ||
         data['success'] == true ||
-        data['status']?.toString().toLowerCase() == 'success' ||
-        data['result']?.toString().toLowerCase() == 'success';
+        data['status']?.toString().trim().toLowerCase() == 'success' ||
+        data['result']?.toString().trim().toLowerCase() == 'success';
+    if (verified) return true;
+    // Fallback: if BDApps already activated/queued the subscription, allow login.
+    return await isPhoneSubscribed(phone);
   }
 
+  /// Starts the local session for [phone] and creates its profile if needed.
   Future<void> completePhoneLogin(String phone) async {
     await _cachePhone(phone);
-    if (_auth.currentUser != null && !_auth.currentUser!.isAnonymous) {
-      await _auth.signOut();
-    }
-    if (_auth.currentUser == null) {
-      await _auth.signInAnonymously();
-    }
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw const AuthException('Could not create the app session.');
-    }
-    await _ensureUserProfile(user, phoneNumber: phone);
-    await _updateLastSignIn(user.uid);
-  }
-
-  // ============================================
-  // Email + password
-  // ============================================
-
-  Future<UserCredential> signInWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    final cred = await _auth.signInWithEmailAndPassword(
-      email: email.trim(),
-      password: password,
-    );
-    await _updateLastSignIn(cred.user?.uid);
-    return cred;
-  }
-
-  Future<UserCredential> signUpWithEmail({
-    required String email,
-    required String password,
-    String? displayName,
-    String role = UserRole.defaultRole,
-  }) async {
-    final cred = await _auth.createUserWithEmailAndPassword(
-      email: email.trim(),
-      password: password,
-    );
-    if (displayName != null && displayName.trim().isNotEmpty) {
-      await cred.user?.updateDisplayName(displayName.trim());
-    }
-    await _ensureUserProfile(cred.user, role: role);
-    await _updateLastSignIn(cred.user?.uid);
-    return cred;
-  }
-
-  Future<void> sendPasswordReset(String email) async {
-    await _auth.sendPasswordResetEmail(email: email.trim());
-  }
-
-  // ============================================
-  // Email verification
-  // ============================================
-
-  /// Sends a verification email to the currently signed-in user.
-  /// Caller must ensure [currentUser] is non-null (e.g. an email/password
-  /// account that has just signed up or signed in).
-  Future<void> sendVerificationEmail() async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw const AuthException('No signed-in user.');
-    }
-    if (user.emailVerified) return;
-    await user.sendEmailVerification();
-  }
-
-  /// Refreshes the cached [User] from Firebase so that
-  /// `User.emailVerified` reflects the latest server state. Useful after
-  /// the user has tapped the verification link in their inbox and
-  /// returned to the app.
-  Future<User?> reloadUser() async {
-    final user = _auth.currentUser;
-    if (user == null) return null;
-    await user.reload();
-    return _auth.currentUser;
-  }
-
-  // ============================================
-  // Google Sign-In
-  // ============================================
-
-  Future<UserCredential> signInWithGoogle() async {
-    final googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) {
-      throw const GoogleSignInCancelled();
-    }
-
-    final auth = await googleUser.authentication;
-    final accessToken = auth.accessToken;
-    final idToken = auth.idToken;
-
-    if (accessToken == null && idToken == null) {
-      throw const AuthException('Google sign-in failed: no tokens returned');
-    }
-
-    final credential = GoogleAuthProvider.credential(
-      accessToken: accessToken,
-      idToken: idToken,
-    );
-
-    final cred = await _auth.signInWithCredential(credential);
-    await _ensureUserProfile(cred.user, role: UserRole.admin);
-    await _updateLastSignIn(cred.user?.uid);
-    return cred;
+    final uid = uidForPhone(phone);
+    LocalAuth.instance.setUid(uid);
+    await _ensureUserProfile(uid, phone);
   }
 
   // ============================================
@@ -250,52 +173,35 @@ class AuthService {
   // ============================================
 
   Future<void> signOut() async {
-    // Best-effort cleanup for Google — wrapped in timeouts so a stalled
-    // network call can never block logout. Order matters: disconnect
-    // locally, then sign out, then drop the Firebase session last so
-    // the auth state change is the final signal.
-    try {
-      await _googleSignIn.disconnect().timeout(const Duration(seconds: 2));
-    } catch (_) {
-      // ignore — may not have been signed in via Google
-    }
-    try {
-      await _googleSignIn.signOut().timeout(const Duration(seconds: 2));
-    } catch (_) {
-      // ignore — best-effort cleanup
-    }
-    await _auth.signOut();
+    LocalAuth.instance.setUid(null);
     await clearPhone();
   }
 
   // ============================================
-  // User profile (Firestore)
+  // User profile (local)
   // ============================================
 
-  DocumentReference<Map<String, dynamic>> _userDoc(String uid) {
-    return _firestore.collection('users').doc(uid);
-  }
+  DocumentReference _userDoc(String uid) =>
+      _db.collection('users').doc(uid);
 
-  /// Creates the profile doc if missing. Used after first sign-in.
-  Future<void> _ensureUserProfile(
-    User? user, {
-    String role = UserRole.defaultRole,
-    String? phoneNumber,
-  }) async {
-    if (user == null) return;
-    final ref = _userDoc(user.uid);
+  Future<void> _ensureUserProfile(String uid, String phone) async {
+    final ref = _userDoc(uid);
     final snap = await ref.get();
-    if (snap.exists) return;
+    if (snap.exists) {
+      await ref.update({
+        'lastSignInAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return;
+    }
     final now = DateTime.now();
     final profile = UserModel(
-      uid: user.uid,
-      email: user.email ?? '',
-      displayName: user.displayName,
-      photoURL: user.photoURL,
-      phoneNumber: phoneNumber ?? user.phoneNumber,
-      providerId: _detectProviderId(user),
-      emailVerified: user.emailVerified,
-      role: role,
+      uid: uid,
+      email: '',
+      phoneNumber: phone,
+      providerId: AuthProviderId.phone,
+      emailVerified: true,
+      role: UserRole.admin,
       lastSignInAt: now,
       createdAt: now,
       updatedAt: now,
@@ -306,35 +212,20 @@ class AuthService {
   Future<UserModel?> getUserProfile(String uid) async {
     final snap = await _userDoc(uid).get();
     if (!snap.exists) return null;
-    final data = snap.data();
-    if (data == null) return null;
-    return UserModel.fromFirestore(data, snap.id);
+    return UserModel.fromFirestore(snap.data(), snap.id);
   }
 
   Stream<UserModel?> watchUserProfile(String uid) {
-    return _userDoc(uid).snapshots().map((snap) {
-      final data = snap.data();
-      if (data == null) return null;
-      return UserModel.fromFirestore(data, snap.id);
+    return _db.collection('users').snapshots().map((snap) {
+      for (final doc in snap.docs) {
+        if (doc.id == uid) return UserModel.fromFirestore(doc.data(), doc.id);
+      }
+      return null;
     });
   }
 
   Future<void> updateUserProfile(UserModel profile) async {
     await _userDoc(profile.uid).update(profile.toFirestore());
-  }
-
-  Future<void> _updateLastSignIn(String? uid) async {
-    if (uid == null) return;
-    await _userDoc(uid).update({
-      'lastSignInAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  String _detectProviderId(User user) {
-    if (user.providerData.isEmpty) return AuthProviderId.email;
-    // providerId is non-null in practice (Firebase populates it).
-    return user.providerData.first.providerId;
   }
 }
 
@@ -346,14 +237,6 @@ class AuthException implements Exception {
 
   @override
   String toString() => 'AuthException: $message';
-}
-
-/// GoogleSignInCancelled - thrown when user dismisses Google sign-in.
-class GoogleSignInCancelled implements Exception {
-  const GoogleSignInCancelled();
-
-  @override
-  String toString() => 'Google sign-in cancelled';
 }
 
 class OtpRequest {

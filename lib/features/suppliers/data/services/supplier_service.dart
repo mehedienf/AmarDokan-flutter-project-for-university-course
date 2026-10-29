@@ -1,27 +1,26 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 
 import 'package:amar_dokan/features/suppliers/data/models/supplier_model.dart';
 
-/// SupplierService - Firestore এর সাথে supplier data manage করে
+/// SupplierService - storage এর সাথে supplier data manage করে
 ///
-/// Firestore path: users/{userId}/suppliers/{supplierId}
+/// storage path: users/{userId}/suppliers/{supplierId}
 ///
 /// এই service এর কাজ:
 /// - Real-time stream দিয়ে supplier list পাওয়া
 /// - Supplier add/update/delete করা
 /// - Search query দিয়ে filter করা
 class SupplierService {
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  final LocalDb _firestore;
+  final LocalAuth _auth;
 
   SupplierService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+    LocalDb? firestore,
+    LocalAuth? auth,
+  })  : _firestore = firestore ?? LocalDb.instance,
+        _auth = auth ?? LocalAuth.instance;
 
   /// Current user এর suppliers collection reference
   CollectionReference? get _suppliersCollection {
@@ -41,7 +40,7 @@ class SupplierService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) =>
-                SupplierModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+                SupplierModel.fromFirestore(doc.data(), doc.id))
             .toList());
   }
 
@@ -84,7 +83,7 @@ class SupplierService {
     final doc = await collection.doc(supplierId).get();
     if (!doc.exists) return null;
     return SupplierModel.fromFirestore(
-      doc.data() as Map<String, dynamic>,
+      doc.data(),
       doc.id,
     );
   }

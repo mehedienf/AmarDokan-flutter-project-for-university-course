@@ -24,9 +24,9 @@ class AppColors {
   // Neutral Colors (Background ও text এর জন্য)
   static const Color background = Color(0xFFF5F5F5); // হালকা ধূসর background
   static const Color surface = Color(0xFFFFFFFF); // Card এর background
-  static const Color textPrimary = Color(0xFF212121); // প্রধান text — গাঢ় কালো, যাতে light mode এ স্পষ্ট পড়া যায়
-  static const Color textSecondary = Color(0xFF616161); // গৌণ text — যথেষ্ট contrast
-  static const Color divider = Color(0xFFE0E0E0); // Divider line
+  static const Color textPrimary = Color(0xFF111827); // প্রধান text — গাঢ় কালো, যাতে স্পষ্ট পড়া যায়
+  static const Color textSecondary = Color(0xFF374151); // গৌণ text — গাঢ় ধূসর, উচ্চ contrast
+  static const Color divider = Color(0xFFD1D5DB); // Divider line
 
   // Dashboard specific colors
   static const Color salesCard = Color(0xFF1976D2); // Sales card color

@@ -1,27 +1,26 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 
 import 'package:amar_dokan/features/customers/data/models/customer_model.dart';
 
-/// CustomerService - Firestore এর সাথে customer data manage করে
+/// CustomerService - storage এর সাথে customer data manage করে
 ///
-/// Firestore path: users/{userId}/customers/{customerId}
+/// storage path: users/{userId}/customers/{customerId}
 ///
 /// এই service এর কাজ:
 /// - Real-time stream দিয়ে customer list পাওয়া
 /// - Customer add/update/delete করা
 /// - Search query দিয়ে filter করা
 class CustomerService {
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  final LocalDb _firestore;
+  final LocalAuth _auth;
 
   CustomerService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+    LocalDb? firestore,
+    LocalAuth? auth,
+  })  : _firestore = firestore ?? LocalDb.instance,
+        _auth = auth ?? LocalAuth.instance;
 
   /// Current user এর customers collection reference
   CollectionReference? get _customersCollection {
@@ -41,7 +40,7 @@ class CustomerService {
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) =>
-                CustomerModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+                CustomerModel.fromFirestore(doc.data(), doc.id))
             .toList());
   }
 
@@ -84,7 +83,7 @@ class CustomerService {
     final doc = await collection.doc(customerId).get();
     if (!doc.exists) return null;
     return CustomerModel.fromFirestore(
-      doc.data() as Map<String, dynamic>,
+      doc.data(),
       doc.id,
     );
   }

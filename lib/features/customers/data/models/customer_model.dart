@@ -1,9 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 
-/// Customer Model - Firestore এর সাথে কাজ করার জন্য design করা
+/// Customer Model - storage এর সাথে কাজ করার জন্য design করা
 ///
 /// এই model এর প্রতিটি field এর purpose:
-/// - id: Firestore document ID
+/// - id: storage document ID
 /// - name: Customer এর নাম
 /// - phone: Phone number (primary contact)
 /// - email: Email address (optional)
@@ -72,7 +72,7 @@ class CustomerModel {
   // Firestore Serialization
   // ============================================
 
-  /// Firestore document থেকে CustomerModel বানাও
+  /// storage document থেকে CustomerModel বানাও
   factory CustomerModel.fromFirestore(
     Map<String, dynamic> data,
     String documentId,
@@ -93,7 +93,7 @@ class CustomerModel {
     );
   }
 
-  /// CustomerModel কে Firestore document এ save করার জন্য Map এ convert
+  /// CustomerModel কে storage document এ save করার জন্য Map এ convert
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,

@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 
 import 'purchase_item_model.dart';
 

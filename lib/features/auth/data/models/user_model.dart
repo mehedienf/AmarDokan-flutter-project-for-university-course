@@ -1,9 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 
 /// Provider id values used in [providerId].
 class AuthProviderId {
   static const String email = 'password';
   static const String google = 'google.com';
+  static const String phone = 'phone';
 }
 
 /// Role assigned to a user — controls which screens are reachable.
@@ -13,17 +14,17 @@ class UserRole {
   static const String admin = 'admin';
   static const String staff = 'staff';
 
-  /// Default role when none is recorded (legacy accounts, OAuth, etc.).
-  static const String defaultRole = staff;
+  /// Default role when none is recorded.
+  static const String defaultRole = admin;
 
   static bool isAdmin(String? role) => role == admin;
   static bool isStaff(String? role) => role == staff;
 }
 
-/// UserModel - Firebase Auth user profile stored in Firestore `users` collection.
+/// UserModel - Firebase Auth user profile stored in storage `users` collection.
 ///
-/// Holds profile fields surfaced from FirebaseAuth + extra metadata we
-/// keep in Firestore. The `providerId` field remembers which auth
+/// Holds profile fields surfaced from LocalAuth + extra metadata we
+/// keep in storage. The `providerId` field remembers which auth
 /// provider created the account (password or Google) for analytics.
 class UserModel {
   final String uid;

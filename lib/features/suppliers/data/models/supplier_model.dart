@@ -1,9 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:amar_dokan/core/local/local_db.dart';
 
-/// Supplier Model - Firestore এর সাথে কাজ করার জন্য design করা
+/// Supplier Model - storage এর সাথে কাজ করার জন্য design করা
 ///
 /// এই model এর প্রতিটি field এর purpose:
-/// - id: Firestore document ID
+/// - id: storage document ID
 /// - name: Supplier এর contact person এর নাম
 /// - companyName: Company / business এর নাম
 /// - phone: Phone number (primary contact)
@@ -91,7 +91,7 @@ class SupplierModel {
   // Firestore Serialization
   // ============================================
 
-  /// Firestore document থেকে SupplierModel বানাও
+  /// storage document থেকে SupplierModel বানাও
   factory SupplierModel.fromFirestore(
     Map<String, dynamic> data,
     String documentId,
@@ -114,7 +114,7 @@ class SupplierModel {
     );
   }
 
-  /// SupplierModel কে Firestore document এ save করার জন্য Map এ convert
+  /// SupplierModel কে storage document এ save করার জন্য Map এ convert
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,
